@@ -349,13 +349,18 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
         </div>
       </div>
       <div class="grid g2" style="margin-top:14px">
-        <div class="card span2">
+        <div class="card">
           <h3>Evolución de la cartera (USD)</h3>
           <p class="sub">Valor de la cuenta al cierre de cada mes</p>
           <div class="cwrap h260"><canvas id="cInv"></canvas></div>
         </div>
+        <div class="card">
+          <h3>Tenencias por activo</h3>
+          <p class="sub">Nominales · cuántos tiene cada uno</p>
+          <div id="tenencias"></div>
+        </div>
       </div>
-      <p class="mini" style="margin-top:8px">Fondos: desglose por persona en vivo desde "Finanzas General". Inversiones: valor y evolución del hogar (el aporte por persona queda para una 2ª etapa).</p>
+      <p class="mini" style="margin-top:8px">Todo en vivo desde "Finanzas General", con el desglose por persona. Inversiones expresadas en nominales (no valuadas por precio). El split de SPY se contempla automáticamente.</p>
     </div>
 
     <div class="foot" id="foot"></div>
@@ -642,7 +647,35 @@ function buildInversiones(matrix){
     }
   }
   serie.sort((a,b)=> (String(a.anio)+String(a.mi).padStart(2,'0')).localeCompare(String(b.anio)+String(b.mi).padStart(2,'0')) );
-  return { serie, valorActual: serie.length?serie[serie.length-1].val:0, valorInicial: serie.length?serie[0].val:0 };
+
+  // Tenencias por activo en nominales, con desglose por persona
+  const iTipo=hdr.indexOf('TIPO'), iAct=hdr.indexOf('ACTIVO'), iNom=hdr.indexOf('NOMINALES'), iAg=hdr.indexOf('AGOS'), iMa=hdr.indexOf('MATI');
+  const acc={};
+  if(iAct>=0 && iNom>=0){
+    for(let r=hi+1;r<raw.length;r++){
+      const row=raw[r]; const act=norm(row[iAct]); if(!act) continue;
+      const nom=num(row[iNom]); const tipo=norm(iTipo>=0?row[iTipo]:'').toLowerCase();
+      const ag=num(row[iAg]), ma=num(row[iMa]);
+      if(!acc[act]) acc[act]={total:0,agos:0,mati:0,owners:new Set(),split:null};
+      const a=acc[act]; a.total+=nom;
+      if(tipo.includes('split')) a.split={agos:ag,mati:ma};   // el split fija el total post-split
+      else { a.agos+=ag; a.mati+=ma; }
+      if(ag>0) a.owners.add('agos'); if(ma>0) a.owners.add('mati');
+    }
+  }
+  const tenencias=[];
+  for(const [act,a] of Object.entries(acc)){
+    if(!(a.total>0)) continue;                                 // descarto lo vendido (neto 0 o negativo)
+    let agos, mati;
+    if(a.split){ agos=a.split.agos; mati=a.split.mati; }       // split: usa el total reconciliado
+    else if(a.owners.size<=1){                                 // un solo dueño: le asigno el total del activo
+      if(a.owners.has('mati')){ mati=a.total; agos=0; } else { agos=a.total; mati=0; }
+    } else { agos=a.agos; mati=a.mati; }                       // varios dueños: suma de columnas
+    tenencias.push({activo:act, agos:Math.round(agos), mati:Math.round(mati), total:Math.round(a.total)});
+  }
+  tenencias.sort((x,y)=>y.total-x.total);
+
+  return { serie, valorActual: serie.length?serie[serie.length-1].val:0, valorInicial: serie.length?serie[0].val:0, tenencias };
 }
 function prevKeys(key,n){
   const [y,m]=key.split('-').map(Number); const out=[];
@@ -1012,10 +1045,25 @@ function renderPatrimonio(P){
     $('#invKpi').innerHTML=`<div class="kpi"><span class="val">${fmtU(inv.valorActual)}</span>`+
       (growth?`<span class="chip ${growth>=0?'good':'crit'}" style="margin-top:6px">${growth>=0?'▲':'▼'} ${fmtU(Math.abs(growth))} (${pct(Math.abs(gpct))}) desde ${first.mes}</span>`:'')+`</div>`;
     renderInvChart(P, inv.serie);
+    renderTenencias(P, inv.tenencias||[]);
   } else {
     $('#invSub').textContent='Valor de la cartera (cuenta Balanz)';
     $('#invKpi').innerHTML='<span class="mini">Sin datos de inversiones.</span>';
+    if($('#tenencias')) $('#tenencias').innerHTML='';
   }
+}
+function renderTenencias(P, ten){
+  const el=$('#tenencias'); if(!el) return;
+  if(!ten.length){ el.innerHTML='<span class="mini">Sin tenencias cargadas.</span>'; return; }
+  let h=`<table><thead><tr><th>Activo</th><th>Agos</th><th>Mati</th><th>Total</th></tr></thead><tbody>`;
+  for(const t of ten){
+    h+=`<tr><td><b>${t.activo}</b></td>`+
+       `<td style="color:${P.s[2]};font-weight:600">${t.agos||'—'}</td>`+
+       `<td style="color:${P.s[0]};font-weight:600">${t.mati||'—'}</td>`+
+       `<td>${t.total}</td></tr>`;
+  }
+  h+=`</tbody></table><div class="legend" style="margin-top:8px"><span class="it"><span class="sw" style="background:${P.s[2]}"></span>Agos</span><span class="it"><span class="sw" style="background:${P.s[0]}"></span>Mati</span></div>`;
+  el.innerHTML=h;
 }
 function renderInvChart(P, serie){
   const labels=serie.map(s=>MES_ABBR[s.mi]+' '+String(s.anio).slice(2));
