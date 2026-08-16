@@ -453,6 +453,7 @@ function parseCSV(text){
 }
 function num(s){
   if(s==null) return 0;
+  if(typeof s==='number') return isFinite(s)?s:0;   // gviz ya lo da como número: usarlo tal cual
   s=String(s).replace(/[^0-9.,-]/g,'');
   if(!s) return 0;
   const hasC=s.includes(','), hasD=s.includes('.');
@@ -489,6 +490,7 @@ function gvizMatrix(resp){
   for(const r of (t.rows||[])){
     out.push((r.c||[]).map(cell=>{
       if(!cell) return '';
+      if(typeof cell.v==='number') return cell.v;   // preservar número (no romper decimales con el punto)
       if(cell.v!=null) return String(cell.v);
       if(cell.f!=null) return String(cell.f);
       return '';
