@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>Finanzas · Presupuesto 50/20/20/10</title>
 <script>
 /* Chart.js v4.4.1 (MIT) — incrustado para funcionar sin conexión a CDNs */
@@ -327,6 +328,36 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
       </div>
     </div>
 
+    <!-- PATRIMONIO: fondos + inversiones (Finanzas General) -->
+    <div class="sec hide" id="secPatrimonio">
+      <div class="sec-h"><h2>Patrimonio · dólares</h2><span class="kick">fondos e inversiones del hogar</span></div>
+      <div class="grid g3">
+        <div class="card">
+          <h3>Fondo de emergencia</h3>
+          <p class="sub">Objetivo: 6 meses de gastos fijos (tranquilidad)</p>
+          <div id="emergencia"></div>
+        </div>
+        <div class="card">
+          <h3>Fondo de vacaciones</h3>
+          <p class="sub">Ahorro acumulado en USD</p>
+          <div id="vacacionesUsd"></div>
+        </div>
+        <div class="card">
+          <h3>Inversiones</h3>
+          <p class="sub" id="invSub">Valor de la cartera (cuenta Balanz)</p>
+          <div id="invKpi"></div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card span2">
+          <h3>Evolución de la cartera (USD)</h3>
+          <p class="sub">Valor de la cuenta al cierre de cada mes</p>
+          <div class="cwrap h260"><canvas id="cInv"></canvas></div>
+        </div>
+      </div>
+      <p class="mini" style="margin-top:8px">Fondos: desglose por persona en vivo desde "Finanzas General". Inversiones: valor y evolución del hogar (el aporte por persona queda para una 2ª etapa).</p>
+    </div>
+
     <div class="foot" id="foot"></div>
   </div>
 </div>
@@ -368,15 +399,19 @@ const MES_ABBR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","N
 const BALDE_ORDER = ["Esenciales","Personales","Ahorro","Vacaciones"];
 const fmt = new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0});
 const fmt1 = new Intl.NumberFormat("es-AR",{maximumFractionDigits:1});
+const fmtU = v => 'US$'+Math.round(v||0).toLocaleString('es-AR');
 const pct = v => (v*100).toFixed(v>=1?0:1).replace(".",",")+"%";
 const $ = s => document.querySelector(s);
 
-let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{} };
+let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null };
 
 // La planilla se lee vía gviz + JSONP (carga por <script>, sin CORS).
 // Requiere que la planilla esté compartida como "Cualquiera con el enlace → Lector".
 const FILE_ID = "1A6EG4Kf_XZognTAPzGH9avA1MJCfcw2VhuTRu2dfz6E";
 const SHEET_NAME = "Movimientos";
+// Segunda planilla "Finanzas General" (fondos e inversiones del hogar, igual para los dos)
+const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs";
+const EMERG_OBJ = { Mati:3774, Agos:3400 }; // objetivo fondo de emergencia en USD (tabla Gastos Fijos)
 
 /* ---------- theme ---------- */
 function palette(){
@@ -559,6 +594,54 @@ function buildIngresos(matrix){
   }
   return out;
 }
+
+// hoja Fondos: suma por fondo (Tranquilidad / Vacaciones) el aporte neto de cada uno (USD)
+function buildFondos(matrix){
+  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
+  if(!raw.length) return null;
+  let hi=raw.findIndex(r=>norm(r[0]).toUpperCase()==='FECHA');
+  if(hi<0) hi=0;
+  const hdr=raw[hi].map(c=>norm(c).toUpperCase());
+  const iFondo=hdr.findIndex(c=>c.includes('FONDO'));
+  const iAgos=hdr.findIndex(c=>c==='AGOS');
+  const iMati=hdr.findIndex(c=>c==='MATI');
+  if(iFondo<0||iAgos<0||iMati<0) return null;
+  const out={ Tranquilidad:{agos:0,mati:0}, Vacaciones:{agos:0,mati:0} };
+  for(let r=hi+1;r<raw.length;r++){
+    const row=raw[r]; const f=norm(row[iFondo]).toLowerCase();
+    let key=null;
+    if(f.includes('tranquil')) key='Tranquilidad';
+    else if(f.includes('vacacion')) key='Vacaciones';
+    if(!key) continue;
+    out[key].agos += num(row[iAgos]);
+    out[key].mati += num(row[iMati]);
+  }
+  return out;
+}
+
+// hoja Inversiones: serie mensual del valor de la cuenta en USD (columna BALANZ)
+function buildInversiones(matrix){
+  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
+  if(!raw.length) return null;
+  let hi=raw.findIndex(r=>norm(r[0]).toUpperCase()==='FECHA');
+  if(hi<0) hi=0;
+  const hdr=raw[hi].map(c=>norm(c).toUpperCase());
+  const iBal=hdr.findIndex(c=>c.includes('BALANZ'));
+  const iMes=hdr.findIndex(c=>c==='MES');
+  const iAnio=hdr.findIndex(c=>c.replace(/[ÑN]/g,'N')==='ANO' || c.includes('AÑO'));
+  const serie=[];
+  if(iBal>=0 && iMes>=0){
+    for(let r=hi+1;r<raw.length;r++){
+      const row=raw[r]; const v=num(row[iBal]); const mesTxt=norm(row[iMes]);
+      if(!(v>0) || !mesTxt) continue;
+      const mi=MESES.findIndex(m=>m.toLowerCase()===mesTxt.toLowerCase());
+      if(mi<0) continue;
+      serie.push({ mes:mesTxt, mi, anio:norm(iAnio>=0?row[iAnio]:''), val:v });
+    }
+  }
+  serie.sort((a,b)=> (String(a.anio)+String(a.mi).padStart(2,'0')).localeCompare(String(b.anio)+String(b.mi).padStart(2,'0')) );
+  return { serie, valorActual: serie.length?serie[serie.length-1].val:0, valorInicial: serie.length?serie[0].val:0 };
+}
 function prevKeys(key,n){
   const [y,m]=key.split('-').map(Number); const out=[];
   let yy=y, mm=m;
@@ -626,6 +709,7 @@ function render(){
   renderObjetivos(P,{anio,mi,ingreso,m});
   renderComp(P,m,anio);
   renderCuotas(P,key);
+  renderPatrimonio(P);
   renderFoot();
 }
 
@@ -883,6 +967,66 @@ function renderCuotas(P,key){
     options:o});
 }
 
+function fundBlock(total, objetivo, parts, P){
+  let h=`<div class="kpi" style="margin-bottom:12px"><span class="val">${fmtU(total)}</span>`;
+  if(objetivo){
+    const done=total>=objetivo; const p=objetivo>0?Math.min(100,total/objetivo*100):0;
+    h+=`<span class="sub">de ${fmtU(objetivo)} · ${pct(objetivo?total/objetivo:0)} ${done?'✅':''}</span>`+
+       `<div class="track" style="margin-top:8px"><div class="fill" style="width:${p}%;background:${done?'var(--good)':P.s[0]}"></div></div>`+
+       (done?'':`<span class="mini" style="margin-top:5px">Faltan ${fmtU(objetivo-total)}</span>`);
+  }
+  h+=`</div>`;
+  for(const pt of parts){
+    const right = pt.o!=null ? `${fmtU(pt.v)} / ${fmtU(pt.o)} (${pct(pt.o?pt.v/pt.o:0)})` : fmtU(pt.v);
+    const w = pt.o!=null ? (pt.o>0?Math.min(100,pt.v/pt.o*100):0) : (total>0?Math.min(100,pt.v/total*100):0);
+    h+=`<div class="obj"><div class="top"><span class="name" style="font-size:13px"><span class="dotb" style="background:${pt.c}"></span> ${pt.n}</span><span class="mini">${right}</span></div>`+
+       `<div class="track"><div class="fill" style="width:${w}%;background:${pt.c}"></div></div></div>`;
+  }
+  return h;
+}
+function renderPatrimonio(P){
+  const sec=$('#secPatrimonio'); const pat=STATE.patrimonio;
+  if(!pat || (!pat.fondos && !pat.inversiones)){ sec.classList.add('hide'); return; }
+  sec.classList.remove('hide');
+  // Fondo de emergencia (Tranquilidad)
+  if(pat.fondos){
+    const t=pat.fondos.Tranquilidad, v=pat.fondos.Vacaciones;
+    const objT=EMERG_OBJ.Mati+EMERG_OBJ.Agos;
+    $('#emergencia').innerHTML = fundBlock(t.mati+t.agos, objT,
+      [{n:'Mati',v:t.mati,o:EMERG_OBJ.Mati,c:P.s[0]},{n:'Agos',v:t.agos,o:EMERG_OBJ.Agos,c:P.s[2]}], P);
+    $('#vacacionesUsd').innerHTML = fundBlock(v.mati+v.agos, null,
+      [{n:'Mati',v:v.mati,c:P.s[0]},{n:'Agos',v:v.agos,c:P.s[2]}], P);
+  } else {
+    $('#emergencia').innerHTML='<span class="mini">Sin datos de fondos.</span>';
+    $('#vacacionesUsd').innerHTML='';
+  }
+  // Inversiones
+  const inv=pat.inversiones;
+  if(inv && inv.serie.length){
+    const growth=inv.valorActual-inv.valorInicial;
+    const gpct=inv.valorInicial?growth/inv.valorInicial:0;
+    const last=inv.serie[inv.serie.length-1], first=inv.serie[0];
+    $('#invSub').textContent=`Valor al cierre · ${last.mes} ${last.anio}`;
+    $('#invKpi').innerHTML=`<div class="kpi"><span class="val">${fmtU(inv.valorActual)}</span>`+
+      (growth?`<span class="chip ${growth>=0?'good':'crit'}" style="margin-top:6px">${growth>=0?'▲':'▼'} ${fmtU(Math.abs(growth))} (${pct(Math.abs(gpct))}) desde ${first.mes}</span>`:'')+`</div>`;
+    renderInvChart(P, inv.serie);
+  } else {
+    $('#invSub').textContent='Valor de la cartera (cuenta Balanz)';
+    $('#invKpi').innerHTML='<span class="mini">Sin datos de inversiones.</span>';
+  }
+}
+function renderInvChart(P, serie){
+  const labels=serie.map(s=>MES_ABBR[s.mi]+' '+String(s.anio).slice(2));
+  const data=serie.map(s=>s.val);
+  const grad=(ctx)=>{const{ctx:c,chartArea:a}=ctx.chart;if(!a)return 'transparent';const g=c.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,P.s[2]+'55');g.addColorStop(1,P.s[2]+'05');return g;};
+  const o=baseOpts(P);
+  o.plugins.tooltip.callbacks.label=(c)=>'US$'+Math.round(c.parsed.y).toLocaleString('es-AR');
+  o.scales={ x:axis(P,{grid:{display:false}}),
+             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'US$'+(v/1000).toFixed(1)+'k'}}) };
+  STATE.charts.inv=new Chart($('#cInv'),{type:'line',
+    data:{labels,datasets:[{data,borderColor:P.s[2],backgroundColor:grad,fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
+    options:o});
+}
 function renderFoot(){
   $('#foot').innerHTML=`Datos de gastos: en vivo desde tu hoja <b>Movimientos</b>. Ingresos y cuotas: config editable (sync ${CONFIG.syncDate}).
     · El tablero se actualiza cada vez que lo abrís y cada 15 min mientras esté abierto. · Regla 50/20/20/10.`;
@@ -901,11 +1045,12 @@ function fillPeriodo(){
 }
 
 /* ---------- load (gviz + JSONP, sin CORS) ---------- */
-function loadGviz(sheet){
+function loadGviz(sheet, fileId){
   sheet = sheet || SHEET_NAME;
+  fileId = fileId || FILE_ID;
   return new Promise((resolve,reject)=>{
     const cb='__gviz_'+Math.floor(performance.now())+'_'+(loadGviz._n=(loadGviz._n||0)+1);
-    const url=`https://docs.google.com/spreadsheets/d/${FILE_ID}/gviz/tq`+
+    const url=`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq`+
               `?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(sheet)}&nc=`+Math.floor(performance.now());
     const s=document.createElement('script');
     let done=false;
@@ -920,8 +1065,11 @@ async function loadData(){
   if(STATE.demo){ STATE.ingresosLive={}; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
   setDot('load','cargando…');
   try{
-    // Movimientos (obligatorio) + Ingresos (opcional), en paralelo
-    const [movR, ingR] = await Promise.allSettled([ loadGviz(SHEET_NAME), loadGviz('INGRESOS') ]);
+    // Movimientos + Ingresos (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
+    const [movR, ingR, fondR, invR] = await Promise.allSettled([
+      loadGviz(SHEET_NAME), loadGviz('INGRESOS'),
+      loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID)
+    ]);
     if(movR.status!=='fulfilled') throw (movR.reason || new Error('script-error'));
     const resp=movR.value;
     if(resp && resp.status==='error'){
@@ -935,6 +1083,13 @@ async function loadData(){
     if(ingR.status==='fulfilled' && ingR.value && ingR.value.status!=='error'){
       try{ STATE.ingresosLive = buildIngresos(gvizMatrix(ingR.value)); }catch(e){ STATE.ingresosLive={}; }
     }
+    // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
+    STATE.patrimonio=null;
+    try{
+      const fondos = (fondR.status==='fulfilled' && fondR.value && fondR.value.status!=='error') ? buildFondos(gvizMatrix(fondR.value)) : null;
+      const inversiones = (invR.status==='fulfilled' && invR.value && invR.value.status!=='error') ? buildInversiones(gvizMatrix(invR.value)) : null;
+      if(fondos || inversiones) STATE.patrimonio = { fondos, inversiones };
+    }catch(e){ STATE.patrimonio=null; }
     applyRows(rows,{live:true});
   }catch(e){
     if($('#app').classList.contains('hide')){ setDot('err','sin conexión a la planilla'); showSetup(explainErr(e)); }
@@ -983,7 +1138,7 @@ function init(){
 
   const hash=location.hash.toLowerCase();
   if(hash.includes('demo')){ STATE.demo=true; loadData(); }
-  else if(STATE.url){ loadData(); }
+  else if(FILE_ID){ loadData(); }
   else { showSetup(); }
 
   // auto refresh (solo en modo en vivo)
