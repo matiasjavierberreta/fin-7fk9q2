@@ -408,12 +408,13 @@ const fmtU = v => 'US$'+Math.round(v||0).toLocaleString('es-AR');
 const pct = v => (v*100).toFixed(v>=1?0:1).replace(".",",")+"%";
 const $ = s => document.querySelector(s);
 
-let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null };
+let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null, cuotasLive:null };
 
 // La planilla se lee vía gviz + JSONP (carga por <script>, sin CORS).
 // Requiere que la planilla esté compartida como "Cualquiera con el enlace → Lector".
 const FILE_ID = "1A6EG4Kf_XZognTAPzGH9avA1MJCfcw2VhuTRu2dfz6E";
 const SHEET_NAME = "Movimientos";
+const SHEET_CUOTAS = "Cuotas";   // hoja con el plan de cuotas (se lee EN VIVO; ver buildCuotas)
 // Segunda planilla "Finanzas General" (fondos e inversiones del hogar, igual para los dos)
 const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs";
 const EMERG_OBJ = { Mati:3774, Agos:3400 }; // objetivo fondo de emergencia en USD (tabla Gastos Fijos)
@@ -600,6 +601,57 @@ function buildIngresos(matrix){
     if(total>0) out[`${pm.anio}-${String(pm.mi+1).padStart(2,'0')}`]=total;
   }
   return out;
+}
+
+// hoja Cuotas: lee el plan de cuotas EN VIVO.
+// Estructura: una fila de encabezado con meses ("ene-26","sept-26"...) y una fila
+// "TOTAL CUOTAS" con el total comprometido por mes. Mapea mes->índice de columna
+// desde el encabezado y lee esos índices en la fila de totales (la API alinea las
+// columnas por índice en todas las filas, así que es robusto).
+function buildCuotas(matrix){
+  const raw=(matrix||[]).filter(r=>r.length);
+  if(!raw.length) return null;
+  const MON={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,sept:8,set:8,oct:9,nov:10,dic:11};
+  const tok=/^([a-zñ]{3,4})[\-\/\.\s]?(\d{2,4})$/i;
+  const monthKey=(s)=>{
+    const m=norm(s).toLowerCase().replace(/\./g,'').match(tok);
+    if(!m || MON[m[1]]==null) return null;
+    let y=m[2]; if(y.length===2) y='20'+y;
+    return `${y}-${String(MON[m[1]]+1).padStart(2,'0')}`;
+  };
+  // fila de encabezado = la que tenga MÁS celdas que parezcan mes
+  let colMap=null, best=0;
+  for(const r of raw){
+    const m={}; let cnt=0;
+    r.forEach((c,i)=>{ const k=monthKey(c); if(k){ m[i]=k; cnt++; } });
+    if(cnt>best){ best=cnt; colMap=m; }
+  }
+  if(!colMap || best<3) return null;
+  // fila de totales por mes: preferí "TOTAL CUOTAS"; si no está, "Personales" (balde); si no, sumá filas de artículos
+  let totalRow=raw.find(r=>{const s=norm(r[0]).toUpperCase();return s.includes('TOTAL')&&s.includes('CUOTA');});
+  const map={};
+  if(totalRow){
+    for(const i in colMap){ map[colMap[i]]=num(totalRow[i]); }
+  }else{
+    const pers=raw.find(r=>norm(r[0]).toUpperCase()==='PERSONALES');
+    if(pers){ for(const i in colMap){ map[colMap[i]]=num(pers[i]); } }
+    else{
+      const skip=new Set(['','ARTICULO','ARTÍCULO','BALDE','CATEGORIA','CATEGORÍA','NOTAS','ESENCIALES','PERSONALES','AHORRO','VACACIONES']);
+      for(const r of raw){
+        const f=norm(r[0]).toUpperCase();
+        if(skip.has(f) || f.includes('TOTAL')) continue;
+        for(const i in colMap){ map[colMap[i]]=(map[colMap[i]]||0)+num(r[i]); }
+      }
+    }
+  }
+  // limpiar: solo meses con cuota > 0, redondeado
+  const cuotas={};
+  for(const k in map){ const v=Math.round(map[k]); if(v>0) cuotas[k]=v; }
+  if(!Object.keys(cuotas).length) return null;
+  // saldo pendiente = suma de las cuotas de este mes en adelante
+  const now=new Date(); const nowKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let pendiente=0; for(const k in cuotas){ if(k>=nowKey) pendiente+=cuotas[k]; }
+  return { cuotas, pendiente };
 }
 
 // hoja Fondos: suma por fondo (Tranquilidad / Vacaciones) el aporte neto de cada uno (USD)
@@ -979,19 +1031,22 @@ function renderComp(P,m,anio){
 }
 
 function renderCuotas(P,key){
-  $('#cuotasSync').textContent=`plan cargado al ${CONFIG.syncDate}`;
-  const cur=CONFIG.cuotas[key]||0;
+  const live = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? STATE.cuotasLive : null;
+  const cuotas = live ? live.cuotas : CONFIG.cuotas;
+  const pendiente = live ? live.pendiente : CONFIG.cuotasPendiente;
+  $('#cuotasSync').textContent = live ? 'en vivo desde tu hoja Cuotas' : `plan cargado al ${CONFIG.syncDate}`;
+  const cur=cuotas[key]||0;
   const anio=key.slice(0,4), mi=parseInt(key.slice(5))-1;
   const ing=ingresoDe(anio,mi);
   const kpis=[
     {lbl:'Cuota de este mes', val:fmt.format(cur), sub: ing?pct(cur/ing)+' del ingreso':''},
-    {lbl:'Saldo pendiente total', val:fmt.format(CONFIG.cuotasPendiente), sub:'de todos los planes'},
-    {lbl:'Meses con cuotas', val:String(Object.values(CONFIG.cuotas).filter(v=>v>0).length), sub:'según plan cargado'}
+    {lbl:'Saldo pendiente', val:fmt.format(pendiente), sub: live?'cuotas de este mes en adelante':'de todos los planes'},
+    {lbl:'Meses con cuotas', val:String(Object.values(cuotas).filter(v=>v>0).length), sub: live?'con cuota > 0':'según plan cargado'}
   ];
   $('#cuotasKpis').innerHTML=kpis.map(t=>`<div class="card kpi"><span class="lbl">${t.lbl}</span><span class="val">${t.val}</span>${t.sub?`<p class="sub">${t.sub}</p>`:''}</div>`).join('');
-  const ks=Object.keys(CONFIG.cuotas).sort();
+  const ks=Object.keys(cuotas).sort();
   const labels=ks.map(k=>{const a=k.slice(2,4),mm=parseInt(k.slice(5))-1;return MES_ABBR[mm]+' '+a;});
-  const data=ks.map(k=>CONFIG.cuotas[k]);
+  const data=ks.map(k=>cuotas[k]);
   const cols=ks.map(k=>k===key?P.s[1]:P.s[0]);
   const o=baseOpts(P);
   o.plugins.tooltip.callbacks.label=(c)=>fmt.format(c.parsed.y);
@@ -1078,7 +1133,8 @@ function renderInvChart(P, serie){
     options:o});
 }
 function renderFoot(){
-  $('#foot').innerHTML=`Datos de gastos: en vivo desde tu hoja <b>Movimientos</b>. Ingresos y cuotas: config editable (sync ${CONFIG.syncDate}).
+  const cuotasFuente = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? 'en vivo desde tu hoja <b>Cuotas</b>' : `config editable (sync ${CONFIG.syncDate})`;
+  $('#foot').innerHTML=`Datos de gastos e ingresos: en vivo desde tus hojas <b>Movimientos</b> e <b>INGRESOS</b>. Cuotas: ${cuotasFuente}.
     · El tablero se actualiza cada vez que lo abrís y cada 15 min mientras esté abierto. · Regla 50/20/20/10.`;
 }
 
@@ -1112,12 +1168,12 @@ function loadGviz(sheet, fileId){
   });
 }
 async function loadData(){
-  if(STATE.demo){ STATE.ingresosLive={}; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
+  if(STATE.demo){ STATE.ingresosLive={}; STATE.cuotasLive=null; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
   setDot('load','cargando…');
   try{
-    // Movimientos + Ingresos (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
-    const [movR, ingR, fondR, invR] = await Promise.allSettled([
-      loadGviz(SHEET_NAME), loadGviz('INGRESOS'),
+    // Movimientos + Ingresos + Cuotas (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
+    const [movR, ingR, cuoR, fondR, invR] = await Promise.allSettled([
+      loadGviz(SHEET_NAME), loadGviz('INGRESOS'), loadGviz(SHEET_CUOTAS),
       loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID)
     ]);
     if(movR.status!=='fulfilled') throw (movR.reason || new Error('script-error'));
@@ -1132,6 +1188,11 @@ async function loadData(){
     STATE.ingresosLive={};
     if(ingR.status==='fulfilled' && ingR.value && ingR.value.status!=='error'){
       try{ STATE.ingresosLive = buildIngresos(gvizMatrix(ingR.value)); }catch(e){ STATE.ingresosLive={}; }
+    }
+    // cuotas en vivo (si la hoja Cuotas se pudo leer); si falla, cae al plan de CONFIG
+    STATE.cuotasLive=null;
+    if(cuoR.status==='fulfilled' && cuoR.value && cuoR.value.status!=='error'){
+      try{ STATE.cuotasLive = buildCuotas(gvizMatrix(cuoR.value)); }catch(e){ STATE.cuotasLive=null; }
     }
     // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
     STATE.patrimonio=null;
@@ -1167,7 +1228,7 @@ function loadFile(file){
   const r=new FileReader();
   r.onload=()=>{ const rows=buildRows(String(r.result));
     if(!rows.length){ $('#setuperr').textContent='⚠️ Ese archivo no tiene movimientos con el formato esperado (columna FECHA…). ¿Descargaste la hoja Movimientos como CSV?'; return; }
-    STATE.ingresosLive={}; applyRows(rows,{manual:true}); };
+    STATE.ingresosLive={}; STATE.cuotasLive=null; applyRows(rows,{manual:true}); };
   r.onerror=()=>{ $('#setuperr').textContent='⚠️ No pude leer el archivo.'; };
   r.readAsText(file,'utf-8');
 }
