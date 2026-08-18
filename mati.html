@@ -603,44 +603,47 @@ function buildIngresos(matrix){
   return out;
 }
 
-// hoja Cuotas: lee el plan de cuotas EN VIVO.
-// Estructura: una fila de encabezado con meses ("ene-26","sept-26"...) y una fila
-// "TOTAL CUOTAS" con el total comprometido por mes. Mapea mes->índice de columna
-// desde el encabezado y lee esos índices en la fila de totales (la API alinea las
-// columnas por índice en todas las filas, así que es robusto).
-function buildCuotas(matrix){
-  const raw=(matrix||[]).filter(r=>r.length);
-  if(!raw.length) return null;
+// hoja Cuotas: lee el plan de cuotas EN VIVO desde la respuesta gviz CRUDA (resp.table).
+// OJO: los meses del encabezado son celdas de FECHA; gviz manda el número de serie en
+// .v y el texto ("sept-26") solo en .f. Por eso leemos .f para el texto de cada celda
+// (si usáramos la matriz normalizada, el mes se perdería y quedaría el número de serie).
+// Mapea mes->índice de columna desde el encabezado y lee esos índices en la fila
+// "TOTAL CUOTAS" (fallback: fila "Personales" del bloque de totales, o suma de artículos).
+function buildCuotas(resp){
+  const t = resp && resp.table; if(!t || !Array.isArray(t.rows)) return null;
+  const rows = t.rows.map(r => (r && r.c) ? r.c : []);
+  const cellText = c => c ? (c.f!=null ? String(c.f) : (c.v!=null ? String(c.v) : '')) : '';
+  const cellNum  = c => { if(!c) return 0; if(typeof c.v==='number') return c.v; return num(c.f!=null?c.f:c.v); };
   const MON={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,sept:8,set:8,oct:9,nov:10,dic:11};
   const tok=/^([a-zñ]{3,4})[\-\/\.\s]?(\d{2,4})$/i;
   const monthKey=(s)=>{
-    const m=norm(s).toLowerCase().replace(/\./g,'').match(tok);
+    const m=String(s||'').toLowerCase().replace(/\./g,'').trim().match(tok);
     if(!m || MON[m[1]]==null) return null;
     let y=m[2]; if(y.length===2) y='20'+y;
     return `${y}-${String(MON[m[1]]+1).padStart(2,'0')}`;
   };
-  // fila de encabezado = la que tenga MÁS celdas que parezcan mes
+  // fila de encabezado = la que tenga MÁS celdas que parezcan mes (por su texto .f)
   let colMap=null, best=0;
-  for(const r of raw){
+  for(const r of rows){
     const m={}; let cnt=0;
-    r.forEach((c,i)=>{ const k=monthKey(c); if(k){ m[i]=k; cnt++; } });
+    r.forEach((c,i)=>{ const k=monthKey(cellText(c)); if(k){ m[i]=k; cnt++; } });
     if(cnt>best){ best=cnt; colMap=m; }
   }
   if(!colMap || best<3) return null;
   // fila de totales por mes: preferí "TOTAL CUOTAS"; si no está, "Personales" (balde); si no, sumá filas de artículos
-  let totalRow=raw.find(r=>{const s=norm(r[0]).toUpperCase();return s.includes('TOTAL')&&s.includes('CUOTA');});
+  let totalRow=rows.find(r=>{const s=cellText(r[0]).toUpperCase();return s.includes('TOTAL')&&s.includes('CUOTA');});
   const map={};
   if(totalRow){
-    for(const i in colMap){ map[colMap[i]]=num(totalRow[i]); }
+    for(const i in colMap){ map[colMap[i]]=cellNum(totalRow[i]); }
   }else{
-    const pers=raw.find(r=>norm(r[0]).toUpperCase()==='PERSONALES');
-    if(pers){ for(const i in colMap){ map[colMap[i]]=num(pers[i]); } }
+    const pers=rows.find(r=>cellText(r[0]).toUpperCase()==='PERSONALES');
+    if(pers){ for(const i in colMap){ map[colMap[i]]=cellNum(pers[i]); } }
     else{
       const skip=new Set(['','ARTICULO','ARTÍCULO','BALDE','CATEGORIA','CATEGORÍA','NOTAS','ESENCIALES','PERSONALES','AHORRO','VACACIONES']);
-      for(const r of raw){
-        const f=norm(r[0]).toUpperCase();
+      for(const r of rows){
+        const f=cellText(r[0]).toUpperCase();
         if(skip.has(f) || f.includes('TOTAL')) continue;
-        for(const i in colMap){ map[colMap[i]]=(map[colMap[i]]||0)+num(r[i]); }
+        for(const i in colMap){ map[colMap[i]]=(map[colMap[i]]||0)+cellNum(r[i]); }
       }
     }
   }
@@ -1192,7 +1195,7 @@ async function loadData(){
     // cuotas en vivo (si la hoja Cuotas se pudo leer); si falla, cae al plan de CONFIG
     STATE.cuotasLive=null;
     if(cuoR.status==='fulfilled' && cuoR.value && cuoR.value.status!=='error'){
-      try{ STATE.cuotasLive = buildCuotas(gvizMatrix(cuoR.value)); }catch(e){ STATE.cuotasLive=null; }
+      try{ STATE.cuotasLive = buildCuotas(cuoR.value); }catch(e){ STATE.cuotasLive=null; }
     }
     // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
     STATE.patrimonio=null;
