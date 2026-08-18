@@ -914,6 +914,7 @@ function renderTop(P,m){
   $('#topSub').textContent = m? `${m.mes} ${m.anio} · top ${cats.length}` : '';
   const labels=cats.map(c=>c[0]); const data=cats.map(c=>c[1]);
   const o=baseOpts(P); o.indexAxis='y';
+  o.interaction={intersect:false,mode:'index',axis:'y'}; // barras horizontales: el tooltip sigue la FILA (eje Y), no la posición X del cursor
   o.plugins.tooltip.callbacks.label=(c)=>fmt.format(c.parsed.x);
   o.scales={ x:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}),
              y:axis(P,{grid:{display:false},ticks:{color:P.ink2,font:{size:11.5}}}) };
@@ -932,6 +933,7 @@ function renderVs(P,key,m){
   const mesData=cats.map(c=>c[1]);
   const avgData=cats.map(c=>{const n=catCount[c[0]]||0; return n?catTot[c[0]]/n:0;});
   const o=baseOpts(P); o.indexAxis='y';
+  o.interaction={intersect:false,mode:'index',axis:'y'}; // barras horizontales: el tooltip sigue la FILA (eje Y), no la posición X del cursor
   o.plugins.tooltip.callbacks.label=(c)=>`${c.dataset.label}: ${fmt.format(c.parsed.x)}`;
   o.scales={ x:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}),
              y:axis(P,{grid:{display:false},ticks:{color:P.ink2,font:{size:11.5}}}) };
