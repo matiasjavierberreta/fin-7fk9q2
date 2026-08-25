@@ -408,13 +408,16 @@ const fmtU = v => 'US$'+Math.round(v||0).toLocaleString('es-AR');
 const pct = v => (v*100).toFixed(v>=1?0:1).replace(".",",")+"%";
 const $ = s => document.querySelector(s);
 
-let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null, cuotasLive:null };
+let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null, cuotasLive:null, baldesLive:null };
+// porcentajes de baldes EN VIVO desde la hoja CONFIG (fallback: CONFIG.baldes horneado)
+function BALDES(){ return STATE.baldesLive || CONFIG.baldes; }
 
 // La planilla se lee vía gviz + JSONP (carga por <script>, sin CORS).
 // Requiere que la planilla esté compartida como "Cualquiera con el enlace → Lector".
 const FILE_ID = "1A6EG4Kf_XZognTAPzGH9avA1MJCfcw2VhuTRu2dfz6E";
 const SHEET_NAME = "Movimientos";
 const SHEET_CUOTAS = "Cuotas";   // hoja con el plan de cuotas (se lee EN VIVO; ver buildCuotas)
+const SHEET_CONFIG = "CONFIG";   // hoja de configuración: porcentajes de baldes (se lee EN VIVO; ver buildConfigBaldes)
 // Segunda planilla "Finanzas General" (fondos e inversiones del hogar, igual para los dos)
 const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs";
 const EMERG_OBJ = { Mati:3774, Agos:3400 }; // objetivo fondo de emergencia en USD (tabla Gastos Fijos)
@@ -657,6 +660,38 @@ function buildCuotas(resp){
   return { cuotas, pendiente };
 }
 
+// hoja CONFIG: lee los porcentajes de los 4 baldes EN VIVO (bloque "PORCENTAJES DEL PRESUPUESTO").
+// Lee la respuesta gviz CRUDA (resp.table) y usa el valor .v de cada celda: una celda con formato "%"
+// puede traer la fracción numérica (0,5) o el texto "50,0%"; num() cubre ambos y dividimos /100 si es > 1.
+// Cada balde figura como etiqueta seguida de su % en la celda siguiente. Devuelve fracciones que suman 1
+// (normaliza redondeos). Si falta alguno o no suma nada, devuelve null y se usa el horneado.
+function buildConfigBaldes(resp){
+  const t = resp && resp.table; if(!t || !Array.isArray(t.rows)) return null;
+  const rows = t.rows.map(r => (r && r.c) ? r.c : []);
+  const cellText = c => c ? (c.f!=null ? String(c.f) : (c.v!=null ? String(c.v) : '')) : '';
+  const cellVal  = c => { if(!c) return null; if(typeof c.v==='number') return c.v; const n=num(c.f!=null?c.f:c.v); return isFinite(n)?n:null; };
+  const want=['Esenciales','Personales','Ahorro','Vacaciones'];
+  const out={};
+  for(const r of rows){
+    for(let ci=0; ci<r.length; ci++){
+      const lbl=cellText(r[ci]).trim().toLowerCase();
+      const hit=want.find(w=>w.toLowerCase()===lbl);
+      if(!hit || out[hit]!=null) continue;
+      for(let cj=ci+1; cj<r.length; cj++){
+        let v=cellVal(r[cj]);
+        if(v==null || v<=0) continue;
+        if(v>1) v=v/100;
+        if(v>0 && v<=1){ out[hit]=v; break; }
+      }
+    }
+  }
+  if(want.some(w=>out[w]==null)) return null;
+  const sum=want.reduce((a,w)=>a+out[w],0);
+  if(sum<=0) return null;
+  if(Math.abs(sum-1)>0.005){ for(const w of want) out[w]=out[w]/sum; }
+  return out;
+}
+
 // hoja Fondos: suma por fondo (Tranquilidad / Vacaciones) el aporte neto de cada uno (USD)
 function buildFondos(matrix){
   const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
@@ -845,7 +880,7 @@ function renderBullets(P,{anio,mi,ingreso,m}){
   for(const b of BALDE_ORDER){
     const isSaving = (b==='Ahorro'||b==='Vacaciones');
     const gasto=(m&&m.baldes[b])||0;
-    const presup=ingreso*CONFIG.baldes[b];
+    const presup=ingreso*BALDES()[b];
     const uso= presup>0? gasto/presup : 0;
     const st=statusFor(uso,pace,isSaving);
     const w=Math.min(100,uso*100);
@@ -855,7 +890,7 @@ function renderBullets(P,{anio,mi,ingreso,m}){
     else detail = uso>1 ? ('excedido '+fmt.format(gasto-presup)) : ('quedan '+fmt.format(presup-gasto));
     html+=`<div class="bullet">
       <div class="top">
-        <span class="name"><span class="dotb" style="background:${colors[b]}"></span>${b} <span class="mini">· ${(CONFIG.baldes[b]*100)}%</span></span>
+        <span class="name"><span class="dotb" style="background:${colors[b]}"></span>${b} <span class="mini">· ${Math.round(BALDES()[b]*100)}%</span></span>
         <span class="amt">${fmt.format(gasto)} / ${fmt.format(presup)}</span>
       </div>
       <div class="track"><div class="fill" style="width:${w}%;background:${fillColor}"></div><div class="mark" style="left:100%"></div></div>
@@ -999,8 +1034,8 @@ function renderAcum(P,anio){
 }
 
 function renderObjetivos(P,{anio,mi,ingreso,m}){
-  const ahorro=(m&&m.baldes.Ahorro)||0, ahorroObj=ingreso*CONFIG.baldes.Ahorro;
-  const vac=(m&&m.baldes.Vacaciones)||0, vacObj=ingreso*CONFIG.baldes.Vacaciones;
+  const ahorro=(m&&m.baldes.Ahorro)||0, ahorroObj=ingreso*BALDES().Ahorro;
+  const vac=(m&&m.baldes.Vacaciones)||0, vacObj=ingreso*BALDES().Vacaciones;
   // vacaciones acumuladas del año
   let vacAcc=0; for(let i=0;i<=mi;i++){const k=`${anio}-${String(i+1).padStart(2,'0')}`; vacAcc+=STATE.model.byKey[k]?.baldes.Vacaciones||0;}
   const bar=(lbl,val,obj,color)=>{const p=obj>0?Math.min(100,val/obj*100):0; const done=val>=obj&&obj>0;
@@ -1173,12 +1208,13 @@ function loadGviz(sheet, fileId){
   });
 }
 async function loadData(){
-  if(STATE.demo){ STATE.ingresosLive={}; STATE.cuotasLive=null; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
+  if(STATE.demo){ STATE.ingresosLive={}; STATE.cuotasLive=null; STATE.baldesLive=null; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
   setDot('load','cargando…');
   try{
     // Movimientos + Ingresos + Cuotas (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
-    const [movR, ingR, cuoR, fondR, invR] = await Promise.allSettled([
+    const [movR, ingR, cuoR, cfgR, fondR, invR] = await Promise.allSettled([
       loadGviz(SHEET_NAME), loadGviz('INGRESOS'), loadGviz(SHEET_CUOTAS),
+      loadGviz(SHEET_CONFIG),
       loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID)
     ]);
     if(movR.status!=='fulfilled') throw (movR.reason || new Error('script-error'));
@@ -1198,6 +1234,11 @@ async function loadData(){
     STATE.cuotasLive=null;
     if(cuoR.status==='fulfilled' && cuoR.value && cuoR.value.status!=='error'){
       try{ STATE.cuotasLive = buildCuotas(cuoR.value); }catch(e){ STATE.cuotasLive=null; }
+    }
+    // porcentajes de baldes en vivo (hoja CONFIG); si falla, cae al horneado CONFIG.baldes
+    STATE.baldesLive=null;
+    if(cfgR.status==='fulfilled' && cfgR.value && cfgR.value.status!=='error'){
+      try{ STATE.baldesLive = buildConfigBaldes(cfgR.value); }catch(e){ STATE.baldesLive=null; }
     }
     // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
     STATE.patrimonio=null;
@@ -1233,7 +1274,7 @@ function loadFile(file){
   const r=new FileReader();
   r.onload=()=>{ const rows=buildRows(String(r.result));
     if(!rows.length){ $('#setuperr').textContent='⚠️ Ese archivo no tiene movimientos con el formato esperado (columna FECHA…). ¿Descargaste la hoja Movimientos como CSV?'; return; }
-    STATE.ingresosLive={}; STATE.cuotasLive=null; applyRows(rows,{manual:true}); };
+    STATE.ingresosLive={}; STATE.cuotasLive=null; STATE.baldesLive=null; applyRows(rows,{manual:true}); };
   r.onerror=()=>{ $('#setuperr').textContent='⚠️ No pude leer el archivo.'; };
   r.readAsText(file,'utf-8');
 }
