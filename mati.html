@@ -1337,5 +1337,223 @@ FECHA,AÑO,MES,BALDE,CATEGORIA,DESCRIPCION,MONTO,MEDIO DE PAGO,FIJO/VAR,QUIEN PA
 
 document.addEventListener('DOMContentLoaded',init);
 </script>
+
+<!-- ============================================================= -->
+<!-- SECCIÓN: SUELDO vs INFLACIÓN (agregada 2026-08-31)            -->
+<!-- Lee en vivo la hoja "Sueldos" (fileId distinto) por gviz+JSONP -->
+<!-- ============================================================= -->
+<section id="sec-sueldo-infl" style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border,#2a2a3a)">
+  <h2 style="margin:0 0 4px">Sueldo vs Inflación</h2>
+  <p style="margin:0 0 16px;opacity:.7;font-size:.9em">
+    Índice base 100 = febrero 2025. Si tu línea va por encima de la de inflación, ganás poder adquisitivo.
+    Datos INDEC desde tu hoja Sueldos. Tramo punteado = proyección (REM).
+  </p>
+
+  <!-- KPIs -->
+  <div id="si-kpis" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+  <!-- Controles -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <div class="si-toggle" data-group="sueldo">
+      <button data-val="neto" class="si-active">Neto</button>
+      <button data-val="bruto">Bruto</button>
+    </div>
+    <div class="si-toggle" data-group="vista">
+      <button data-val="indice" class="si-active">Índice (100)</button>
+      <button data-val="real">Salario real $</button>
+    </div>
+  </div>
+
+  <div style="position:relative;height:340px"><canvas id="si-chart"></canvas></div>
+  <p id="si-fuente" style="margin:8px 0 0;opacity:.5;font-size:.75em"></p>
+</section>
+
+<style>
+  .si-toggle{display:inline-flex;border:1px solid var(--border,#2a2a3a);border-radius:8px;overflow:hidden}
+  .si-toggle button{background:transparent;color:inherit;border:0;padding:6px 14px;cursor:pointer;font-size:.85em;opacity:.6}
+  .si-toggle button.si-active{background:var(--accent,#5b8cff);color:#fff;opacity:1}
+  .si-kpi{background:var(--card,#1a1a28);border:1px solid var(--border,#2a2a3a);border-radius:10px;padding:12px 16px;min-width:150px}
+  .si-kpi .lbl{font-size:.72em;opacity:.6;margin-bottom:2px}
+  .si-kpi .val{font-size:1.35em;font-weight:700}
+</style>
+
+<script>
+(function(){
+  // ---- CONFIG ----
+  var SUELDOS_FILE_ID = "1jrKogTCrr1Rc-q2oZxk_0RgH1VgbMMCHm3r9zeBP5fY";
+  var SHEET_SUELDOS   = "Sueldos"; // ajustar si el tab tiene otro nombre
+  var MES_BASE = "feb-25";
+  var ULTIMO_INFL_REAL = "jul-26"; // meses posteriores = proyección
+  var INFL_PROYECTADA = 1.7;       // % mensual REM ago-dic 2026 (editable)
+
+  // ---- FALLBACK horneado (snapshot 2026-08-31) ----
+  var FALLBACK = {
+    sueldos:[
+      ["feb-25",1775000,1498250],["mar-25",1775000,1498250],["abr-25",1865000,1572950],
+      ["may-25",1865000,1572950],["jun-25",1940600,1635698],["jul-25",1940600,1635698],
+      ["ago-25",2019224,1700955.92],["sep-25",2019224,1700955.92],["oct-25",2080550.72,1751857.10],
+      ["nov-25",2080550.72,1751857.10],["dic-25",2354272.31,1979046.02],["ene-26",2354272.31,1979046.02],
+      ["feb-26",2449444.14,2058038.64],["mar-26",2449444.14,2058038.64],["abr-26",2730000,2305900],
+      ["may-26",2730000,2305900],["jun-26",2840800,2397864],["jul-26",2840800,2397864],
+      ["ago-26",2926024,2468599.92]
+    ],
+    infl:{"feb-25":2.4,"mar-25":3.7,"abr-25":2.8,"may-25":1.5,"jun-25":1.6,"jul-25":1.9,
+      "ago-25":1.9,"sep-25":2.1,"oct-25":2.3,"nov-25":2.5,"dic-25":2.8,"ene-26":2.9,
+      "feb-26":2.9,"mar-26":3.4,"abr-26":2.6,"may-26":2.1,"jun-26":1.9,"jul-26":2.1}
+  };
+
+  var MES_MAP={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+  var MES_ABBR=["","ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  function mesNum(m){var p=m.split("-");return (2000+parseInt(p[1]))*100+MES_MAP[p[0]];}
+  function num(v){if(v==null)return NaN;if(typeof v==="number")return v;
+    return parseFloat((""+v).replace(/[^0-9,.\-]/g,"").replace(/\./g,"").replace(",","."));}
+
+  var STATE={sueldos:null,infl:null,live:false};
+
+  function loadGviz(sheet,cb,err){
+    var cbName="siCB_"+Math.random().toString(36).slice(2);
+    window[cbName]=function(resp){try{cb(resp);}finally{delete window[cbName];}};
+    var s=document.createElement("script");
+    s.src="https://docs.google.com/spreadsheets/d/"+SUELDOS_FILE_ID+
+      "/gviz/tq?tqx=out:json;responseHandler:"+cbName+"&sheet="+encodeURIComponent(sheet);
+    s.onerror=function(){delete window[cbName];err&&err();};
+    document.head.appendChild(s);
+  }
+
+  // Parsea la respuesta gviz de la hoja Sueldos: detecta las dos tablas
+  // (sueldos con Mes/Año/Bruto/Neto y la de inflación con Mes/Inflación)
+  function parseSueldos(resp){
+    try{
+      var rows=resp.table.rows, sueldos=[], infl={};
+      // Recorremos filas; heurística por contenido de celdas
+      for(var i=0;i<rows.length;i++){
+        var c=rows[i].c||[];
+        var mesTxt=c[1]&&(c[1].f||c[1].v); // col Mes
+        var anio  =c[2]&&(c[2].f||c[2].v);
+        var bruto =c[3]&&num(c[3].v);
+        var neto  =c[5]&&num(c[5].v);
+        if(mesTxt&&anio&&isFinite(bruto)&&isFinite(neto)&&bruto>0){
+          var mm=(""+mesTxt).trim().toLowerCase().slice(0,3);
+          var yy=(""+anio).replace(/\D/g,"").slice(-2);
+          if(MES_MAP[mm]&&yy) sueldos.push([mm+"-"+yy,bruto,neto]);
+        }
+      }
+      return sueldos.length?{sueldos:sueldos}:null;
+    }catch(e){return null;}
+  }
+
+  function build(){
+    var raw = STATE.sueldos || FALLBACK.sueldos;
+    var infl = STATE.infl || FALLBACK.infl;
+    // completar proyección para meses sin dato real, hasta dic del último año
+    var lastMes = raw[raw.length-1][0];
+    // construir lista de meses de sueldo
+    var meses = raw.map(function(r){return r[0];});
+    // índice inflación acumulado base 100 en MES_BASE
+    var inflIdx={}, acc=100, proj={};
+    inflIdx[MES_BASE]=100; proj[MES_BASE]=false;
+    for(var i=1;i<meses.length;i++){
+      var m=meses[i];
+      var mi = (infl[m]!=null)?infl[m]:INFL_PROYECTADA;
+      acc=acc*(1+mi/100);
+      inflIdx[m]=acc;
+      proj[m]= mesNum(m)>mesNum(ULTIMO_INFL_REAL);
+    }
+    return {raw:raw,meses:meses,inflIdx:inflIdx,proj:proj,infl:infl};
+  }
+
+  var chart=null, sel={sueldo:"neto",vista:"indice"};
+
+  function render(){
+    var d=build();
+    var col = sel.sueldo==="neto"?2:1;
+    // índice sueldo base 100
+    var base=d.raw[0][col], sIdx=d.raw.map(function(r){return r[col]/base*100;});
+    var iIdx=d.meses.map(function(m){return d.inflIdx[m];});
+    var labels=d.meses;
+
+    // separar tramo real/proyección de inflación (para línea punteada)
+    var firstProj=-1;
+    for(var i=0;i<labels.length;i++){if(d.proj[labels[i]]){firstProj=i;break;}}
+
+    var datasets;
+    if(sel.vista==="indice"){
+      // sueldo (una línea) + inflación real + inflación proyectada
+      var inflReal=iIdx.map(function(v,i){return (firstProj<0||i<=firstProj)?v:null;});
+      var inflProj=iIdx.map(function(v,i){return (firstProj>=0&&i>=firstProj-1)?v:null;});
+      datasets=[
+        {label:(sel.sueldo==="neto"?"Sueldo neto":"Sueldo bruto"),data:sIdx,
+         borderColor:"#5b8cff",backgroundColor:"rgba(91,140,255,.08)",borderWidth:2.5,tension:.15,pointRadius:2,fill:true},
+        {label:"Inflación INDEC",data:inflReal,borderColor:"#ff6b6b",borderWidth:2,tension:.15,pointRadius:2},
+        {label:"Inflación (proy.)",data:inflProj,borderColor:"#ff6b6b",borderWidth:2,borderDash:[6,4],tension:.15,pointRadius:0}
+      ];
+    } else {
+      // salario real = nominal / (inflIdx/100)
+      var real=d.raw.map(function(r,i){return r[col]/(d.inflIdx[r[0]]/100);});
+      var realReal=real.map(function(v,i){return (firstProj<0||i<=firstProj)?v:null;});
+      var realProj=real.map(function(v,i){return (firstProj>=0&&i>=firstProj-1)?v:null;});
+      datasets=[
+        {label:"Salario real "+(sel.sueldo==="neto"?"neto":"bruto")+" (pesos de "+MES_BASE+")",
+         data:realReal,borderColor:"#4dd4a8",backgroundColor:"rgba(77,212,168,.08)",borderWidth:2.5,tension:.15,pointRadius:2,fill:true},
+        {label:"(proy.)",data:realProj,borderColor:"#4dd4a8",borderWidth:2,borderDash:[6,4],tension:.15,pointRadius:0}
+      ];
+    }
+
+    var ctx=document.getElementById("si-chart").getContext("2d");
+    if(chart)chart.destroy();
+    chart=new Chart(ctx,{type:"line",data:{labels:labels,datasets:datasets},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+        plugins:{legend:{labels:{boxWidth:12,filter:function(l){return l.text.indexOf("proy")<0||l.text.indexOf("Inflación")>=0;}}},
+          tooltip:{callbacks:{label:function(c){
+            var v=c.parsed.y; if(v==null)return null;
+            return c.dataset.label+": "+(sel.vista==="indice"?v.toFixed(1):"$"+Math.round(v).toLocaleString("es-AR"));
+          }}}},
+        scales:{y:{title:{display:true,text:sel.vista==="indice"?"Índice (feb-25 = 100)":"Pesos de feb-25"}}}}
+    });
+
+    // KPIs
+    var lastN=sIdx[sIdx.length-1], lastI=iIdx[iIdx.length-1];
+    var brecha=(lastN/lastI-1)*100;
+    var gana=brecha>=0;
+    document.getElementById("si-kpis").innerHTML=
+      kpi("Tu sueldo acumuló",(lastN-100).toFixed(1)+"%","#5b8cff")+
+      kpi("Inflación acumuló",(lastI-100).toFixed(1)+"%","#ff6b6b")+
+      kpi(gana?"Le ganás por":"Le perdés por",(gana?"+":"")+brecha.toFixed(1)+"%",gana?"#4dd4a8":"#ff6b6b");
+
+    document.getElementById("si-fuente").textContent=
+      "Fuente: hoja Sueldos "+(STATE.live?"(en vivo)":"(fallback offline)")+
+      " · Inflación real hasta "+ULTIMO_INFL_REAL+", luego proyección "+INFL_PROYECTADA+"% mensual (REM).";
+  }
+
+  function kpi(lbl,val,color){
+    return '<div class="si-kpi"><div class="lbl">'+lbl+'</div><div class="val" style="color:'+color+'">'+val+'</div></div>';
+  }
+
+  // toggles
+  document.querySelectorAll("#sec-sueldo-infl .si-toggle").forEach(function(g){
+    g.addEventListener("click",function(e){
+      if(e.target.tagName!=="BUTTON")return;
+      var grp=g.getAttribute("data-group");
+      g.querySelectorAll("button").forEach(function(b){b.classList.remove("si-active");});
+      e.target.classList.add("si-active");
+      sel[grp]=e.target.getAttribute("data-val");
+      render();
+    });
+  });
+
+  // carga en vivo con fallback
+  function init(){
+    if(typeof Chart==="undefined"){setTimeout(init,300);return;}
+    loadGviz(SHEET_SUELDOS,function(resp){
+      var p=parseSueldos(resp);
+      if(p&&p.sueldos){STATE.sueldos=p.sueldos;STATE.live=true;}
+      render();
+    },function(){render();}); // onerror -> fallback
+    setTimeout(function(){if(!STATE.live)render();},2500); // por si el JSONP no vuelve
+  }
+  init();
+})();
+</script>
+
 </body>
 </html>
