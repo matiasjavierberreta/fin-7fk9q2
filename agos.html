@@ -322,7 +322,7 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
       <div class="grid g2" style="margin-top:14px">
         <div class="card span2">
           <h3>Cuotas comprometidas por mes</h3>
-          <p class="sub">Lo que ya está comprometido en planes de cuotas · <span id="cuotasSync"></span></p>
+          <p class="sub">Lo que ya está comprometido en planes de cuotas · ya sumado dentro de Personales · <span id="cuotasSync"></span></p>
           <div class="cwrap h300"><canvas id="cCuotas"></canvas></div>
         </div>
       </div>
@@ -401,6 +401,7 @@ const CONFIG = {
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const MES_ABBR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const BALDE_ORDER = ["Esenciales","Personales","Ahorro","Vacaciones"];
+const CUOTAS_CAT = "Cuotas del mes";  // categoría virtual: las cuotas del mes se cuentan como gasto Personal (ver foldCuotasIntoPersonales)
 const fmt = new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0});
 const fmt1 = new Intl.NumberFormat("es-AR",{maximumFractionDigits:1});
 const fmtU = v => 'US$'+Math.round(v||0).toLocaleString('es-AR');
@@ -559,6 +560,42 @@ function buildModel(rows){
   }
   const months=[...set].sort();
   return {byKey:M, months};
+}
+// mismo criterio que usa renderCuotas: cuotas EN VIVO si la hoja Cuotas se leyó, si no el plan de CONFIG.
+function activeCuotas(){
+  const live = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? STATE.cuotasLive.cuotas : null;
+  return live || CONFIG.cuotas || {};
+}
+// Suma la cuota comprometida de cada mes DENTRO del balde Personales (la cuota es un gasto
+// personal, solo diferido). Así la barra de Personales, los KPIs, la evolución y el donut
+// muestran lo realmente comprometido y "lo que queda en la mano". Igual criterio que la hoja
+// Panel de la planilla (Panel Personales = Movimientos-Personales + cuotas del mes). Las cuotas
+// viven SOLO en la hoja Cuotas (no se cargan también en Movimientos), por eso no hay doble
+// conteo. Guarda m.cuotasMes para el desglose.
+function foldCuotasIntoPersonales(model){
+  if(STATE.demo) return;                       // en modo demo no mezclamos cuotas
+  const cuo = activeCuotas();
+  if(!cuo || !Object.keys(cuo).length) return;
+  const now=new Date();
+  const curKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  for(const key in cuo){
+    const amt=Math.round(cuo[key]||0); if(amt<=0) continue;
+    // solo meses que ya tienen movimientos + el mes en curso (no llenamos el selector de meses futuros)
+    if(!model.byKey[key] && key!==curKey) continue;
+    if(!model.byKey[key]){
+      const y=key.slice(0,4), mi=parseInt(key.slice(5),10)-1;
+      model.byKey[key]={anio:y,mi,mes:MESES[mi],baldes:{},cats:{},catBalde:{},fv:{Fijo:0,Variable:0,'—':0},medio:{},total:0,n:0};
+      if(!model.months.includes(key)) model.months.push(key);
+    }
+    const m=model.byKey[key];
+    m.baldes.Personales=(m.baldes.Personales||0)+amt;
+    m.cats[CUOTAS_CAT]=(m.cats[CUOTAS_CAT]||0)+amt;
+    m.catBalde[CUOTAS_CAT]='Personales';
+    m.fv.Fijo=(m.fv.Fijo||0)+amt;              // las cuotas son gasto fijo comprometido
+    m.total+=amt;
+    m.cuotasMes=(m.cuotasMes||0)+amt;          // desglose para el bullet de Personales
+  }
+  model.months.sort();
 }
 function ingresoEsLive(anio,mi){
   const k=`${anio}-${String(mi+1).padStart(2,'0')}`;
@@ -888,13 +925,14 @@ function renderBullets(P,{anio,mi,ingreso,m}){
     let detail;
     if(isSaving) detail = uso>=1 ? ('guardaste '+fmt.format(gasto)) : ('faltan '+fmt.format(Math.max(0,presup-gasto))+' para el objetivo');
     else detail = uso>1 ? ('excedido '+fmt.format(gasto-presup)) : ('quedan '+fmt.format(presup-gasto));
+    const cuoNota = (b==='Personales' && m && m.cuotasMes>0) ? ` · incluye ${fmt.format(m.cuotasMes)} en cuotas` : '';
     html+=`<div class="bullet">
       <div class="top">
         <span class="name"><span class="dotb" style="background:${colors[b]}"></span>${b} <span class="mini">· ${Math.round(BALDES()[b]*100)}%</span></span>
         <span class="amt">${fmt.format(gasto)} / ${fmt.format(presup)}</span>
       </div>
       <div class="track"><div class="fill" style="width:${w}%;background:${fillColor}"></div><div class="mark" style="left:100%"></div></div>
-      <div class="msg"><span class="dotb" style="background:${fillColor}"></span>${st.t} · ${detail} (${pct(uso)})</div>
+      <div class="msg"><span class="dotb" style="background:${fillColor}"></span>${st.t} · ${detail} (${pct(uso)})${cuoNota}</div>
     </div>`;
   }
   $('#bullets').innerHTML=html;
@@ -1256,6 +1294,7 @@ async function loadData(){
 function applyRows(rows,opt={}){
   if(!rows || !rows.length){ showSetup('No encontré movimientos. ¿Es el CSV de la hoja "Movimientos"?'); return; }
   STATE.rows=rows; STATE.model=buildModel(rows); STATE.demo=!!opt.demo; STATE.manual=!!opt.manual;
+  foldCuotasIntoPersonales(STATE.model);   // suma las cuotas del mes dentro de Personales
   fillPeriodo();
   $('#setup').classList.add('hide'); $('#app').classList.remove('hide');
   $('#demoBanner').classList.toggle('hide',!opt.demo);
