@@ -1410,10 +1410,14 @@ document.addEventListener('DOMContentLoaded',init);
    ============================================================ */
 (function(){
   var SUELDOS_FILE_ID = "1jrKogTCrr1Rc-q2oZxk_0RgH1VgbMMCHm3r9zeBP5fY";
-  var SI_SHEET = "Sueldos";           // ajustar si el tab tiene otro nombre
+  var SI_SHEET = "Hoja 1";            // tab de sueldos
+  var SI_SHEET_INFL = "Hoja 2";       // tab Año | Mes | Inflación (mismo archivo) — EN VIVO
   var SI_MES_BASE = "feb-25";
-  var SI_ULT_REAL = "jul-26";         // meses posteriores = proyección
-  var SI_INFL_PROY = 1.7;             // % mensual REM ago-dic 2026 (editable)
+  var SI_ULT_REAL_FB = "jul-26";      // fallback: último mes con IPC real si no se lee la hoja
+  var SI_INFL_PROY_FB = 1.7;          // fallback % mensual REM para los meses sin dato cargado.
+                                      // Si en la Hoja 2 hay una celda con el texto "REM" (o
+                                      // "Proyección") y al lado el valor, se usa ESE y este queda
+                                      // de respaldo. Ej: escribir  REM | 1,6%  en cualquier fila.
 
   // Fallback horneado (snapshot 2026-08-31) — solo si la hoja no se puede leer
   var SI_FB = {
@@ -1438,14 +1442,18 @@ document.addEventListener('DOMContentLoaded',init);
   // color desde variable CSS del sistema (mismos colores que el resto del tablero)
   function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
 
-  var SI = {sueldos:null, infl:null, live:false, chart:null, sel:{sueldo:"neto",vista:"indice"}};
+  var SI = {sueldos:null, infl:null, ultReal:null, proy:null, live:false, inflLive:false, chart:null, sel:{sueldo:"neto",vista:"indice"}};
 
-  function siLoadGviz(cb,err){
+  function siUltReal(){return SI.ultReal || SI_ULT_REAL_FB;}
+  function siInflProy(){return (SI.proy!=null) ? SI.proy : SI_INFL_PROY_FB;}
+  function siPct(v){return (Math.abs(v)<=1) ? v*100 : v;}   // 0,017 → 1,7 · "1,7%" → 1,7
+
+  function siLoadGviz(sheet,cb,err){
     var cbName="siCB_"+Math.random().toString(36).slice(2);
     window[cbName]=function(resp){try{cb(resp);}finally{delete window[cbName];}};
     var s=document.createElement("script");
     s.src="https://docs.google.com/spreadsheets/d/"+SUELDOS_FILE_ID+
-      "/gviz/tq?tqx=out:json;responseHandler:"+cbName+"&sheet="+encodeURIComponent(SI_SHEET);
+      "/gviz/tq?tqx=out:json;responseHandler:"+cbName+"&sheet="+encodeURIComponent(sheet);
     s.onerror=function(){delete window[cbName];err&&err();};
     document.head.appendChild(s);
   }
@@ -1470,18 +1478,71 @@ document.addEventListener('DOMContentLoaded',init);
     }catch(e){return null;}
   }
 
+  /* Parsea la hoja de inflación: col Año(0, celda combinada), Mes(1), Inflación(2).
+     El año viene SOLO en la primera fila de cada bloque combinado → se arrastra.
+     El % puede venir como fracción numérica (0,017) o como texto ("1,7%"): se normaliza.
+     Devuelve {map:{"ago-26":1.7,...}, ult:"ago-26"} usando solo los meses YA cargados. */
+  function siParseInfl(resp){
+    try{
+      var rows=resp.table.rows, map={}, ult=null, anio=null;
+      for(var i=0;i<rows.length;i++){
+        var c=rows[i].c||[];
+        var a=c[0]&&(c[0].v!=null?c[0].v:c[0].f);
+        if(a!=null&&(""+a).replace(/\D/g,"").length>=4) anio=(""+a).replace(/\D/g,"").slice(-4);
+        var mesTxt=c[1]&&(c[1].f||c[1].v);
+        if(!anio||!mesTxt) continue;
+        var rawVal=c[2]?(c[2].v!=null?c[2].v:c[2].f):null;
+        var val=(rawVal==null||rawVal==="")?NaN:siNum(rawVal);
+        // primer mes SIN dato cargado → de ahí en adelante es proyección (corta acá)
+        if(!isFinite(val)){ if(ult) break; else continue; }
+        var mm=(""+mesTxt).trim().toLowerCase().slice(0,3);
+        if(!SI_MESN[mm]) continue;
+        var pct = siPct(val);
+        var key = mm+"-"+anio.slice(-2);
+        map[key]=pct;
+        if(!ult||siMesNum(key)>siMesNum(ult)) ult=key;
+      }
+      return ult?{map:map,ult:ult}:null;
+    }catch(e){return null;}
+  }
+
+  /* Busca en la Hoja 2 una celda con el texto "REM" o "Proyección" y toma el
+     primer número que haya a su derecha en la misma fila. Sirve para no tener que
+     tocar el HTML cada vez que cambia el REM. Si no existe, devuelve null. */
+  function siParseProy(resp){
+    try{
+      var rows=resp.table.rows;
+      for(var i=0;i<rows.length;i++){
+        var c=rows[i].c||[];
+        for(var j=0;j<c.length;j++){
+          var txt=c[j]&&(c[j].f!=null?c[j].f:c[j].v);
+          if(txt==null||typeof txt==="number") continue;
+          if(!/(^|\s)rem(\s|$|:)|proyec/i.test(""+txt)) continue;
+          for(var k=j+1;k<c.length;k++){
+            var v=c[k]?(c[k].v!=null?c[k].v:c[k].f):null;
+            if(v==null||v==="") continue;
+            var n=siNum(v);
+            if(isFinite(n)&&n!==0) return siPct(n);
+          }
+        }
+      }
+      return null;
+    }catch(e){return null;}
+  }
+
   function siBuild(){
     var raw = SI.sueldos || SI_FB.sueldos;
     var infl = SI.infl || SI_FB.infl;
+    var ultReal = siUltReal();
     var meses = raw.map(function(r){return r[0];});
     var inflIdx={}, acc=100, proj={};
     inflIdx[SI_MES_BASE]=100; proj[SI_MES_BASE]=false;
     for(var i=1;i<meses.length;i++){
       var m=meses[i];
-      var mi = (infl[m]!=null)?infl[m]:SI_INFL_PROY;
+      var mi = (infl[m]!=null)?infl[m]:siInflProy();
       acc=acc*(1+mi/100);
       inflIdx[m]=acc;
-      proj[m]= siMesNum(m)>siMesNum(SI_ULT_REAL);
+      proj[m]= siMesNum(m)>siMesNum(ultReal);
     }
     return {raw:raw,meses:meses,inflIdx:inflIdx,proj:proj};
   }
@@ -1568,7 +1629,8 @@ document.addEventListener('DOMContentLoaded',init);
 
     document.getElementById("siFuente").textContent=
       "Fuente: hoja Sueldos "+(SI.live?"(en vivo)":"(fallback offline)")+
-      " · Inflación real hasta "+SI_ULT_REAL+", luego proyección "+String(SI_INFL_PROY).replace(".",",")+"% mensual (REM).";
+      " · Inflación INDEC "+(SI.inflLive?"(en vivo, hoja “"+SI_SHEET_INFL+"”)":"(fallback offline)")+
+      " real hasta "+siUltReal()+", luego proyección "+siInflProy().toFixed(1).replace(".",",")+"% mensual (REM"+(SI.proy!=null?", de la planilla":"")+").";
   }
 
   // toggles (selects, mismo look que el resto)
@@ -1576,12 +1638,21 @@ document.addEventListener('DOMContentLoaded',init);
   document.getElementById("siVista").addEventListener("change",function(e){SI.sel.vista=e.target.value;siRender();});
 
   function siInit(){
-    siLoadGviz(function(resp){
+    var pend=2, rendered=false;
+    function ready(){ if(--pend<=0){ rendered=true; siRender(); } }
+    siLoadGviz(SI_SHEET,function(resp){
       var p=siParse(resp);
       if(p){SI.sueldos=p;SI.live=true;}
-      siRender();
-    },function(){siRender();});
-    setTimeout(function(){if(!SI.live)siRender();},2500);
+      ready();
+    },ready);
+    siLoadGviz(SI_SHEET_INFL,function(resp){
+      var q=siParseInfl(resp);
+      if(q){SI.infl=q.map;SI.ultReal=q.ult;SI.inflLive=true;}
+      var p=siParseProy(resp);
+      if(p!=null) SI.proy=p;
+      ready();
+    },ready);
+    setTimeout(function(){if(!rendered)siRender();},3000);
   }
   if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",siInit);}else{siInit();}
 })();
