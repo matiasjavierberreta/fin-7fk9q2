@@ -447,7 +447,16 @@ const SHEET_CUOTAS = "Cuotas";   // hoja con el plan de cuotas (se lee EN VIVO; 
 const SHEET_CONFIG = "CONFIG";   // hoja de configuración: porcentajes de baldes (se lee EN VIVO; ver buildConfigBaldes)
 // Segunda planilla "Finanzas General" (fondos e inversiones del hogar, igual para los dos)
 const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs";
-const EMERG_OBJ = { Mati:3774, Agos:3400 }; // objetivo fondo de emergencia en USD (tabla Gastos Fijos)
+const EMERG_OBJ = { Mati:3774, Agos:3400 }; // FALLBACK del objetivo fondo de emergencia en USD (tabla Gastos Fijos)
+const SHEET_GASTOS_FIJOS = "Gastos Fijos"; // hoja de Finanzas General con "USD Objetivo" por persona
+const EMERG_LIVE = ["Mati"];               // personas cuyo objetivo se lee EN VIVO (Agos queda horneado: es estimativo)
+// objetivo vigente: el de la planilla si se pudo leer, si no el horneado
+function emergObj(){
+  const live=(STATE && STATE.emergObjLive) || {};
+  const o={...EMERG_OBJ};
+  for(const k of EMERG_LIVE){ if(live[k]>0) o[k]=live[k]; }
+  return o;
+}
 
 /* ---------- theme ---------- */
 function palette(){
@@ -753,6 +762,29 @@ function buildConfigBaldes(resp){
   if(sum<=0) return null;
   if(Math.abs(sum-1)>0.005){ for(const w of want) out[w]=out[w]/sum; }
   return out;
+}
+
+// hoja Gastos Fijos: lee el "USD Objetivo" de cada persona.
+// Layout: celda numérica | "USD Objetivo" | ... | "Mati"/"Agos" en la misma fila.
+// Se pide con headers=0 para que la fila 1 (donde está el de Mati) venga como dato y no como encabezado.
+function buildObjetivosEmerg(resp){
+  const t=resp&&resp.table; if(!t) return null;
+  const txt=c=>{ if(!c) return ''; if(c.f!=null) return String(c.f); if(c.v!=null) return String(c.v); return ''; };
+  const val=c=>{ if(!c) return 0; if(typeof c.v==='number') return c.v; return num(c.f!=null?c.f:c.v); };
+  const rows=(t.rows||[]).map(r=>r.c||[]);
+  // por si gviz igual toma la fila 1 como encabezado: sumarla como fila de texto
+  const lab=(t.cols||[]).map(c=>({f:c&&c.label!=null?String(c.label):''}));
+  if(lab.some(c=>/usd\s*objetivo/i.test(c.f))) rows.unshift(lab);
+  const out={};
+  for(const row of rows){
+    const j=row.findIndex(c=>/^\s*usd\s*objetivo\s*$/i.test(txt(c)));
+    if(j<1) continue;
+    const who=row.map(txt).map(s=>s.trim().toLowerCase()).find(s=>s==='mati'||s==='agos');
+    if(!who) continue;
+    const v=val(row[j-1]);
+    if(v>0 && v<1e6){ const k=who==='mati'?'Mati':'Agos'; if(!(k in out)) out[k]=v; }
+  }
+  return Object.keys(out).length?out:null;
 }
 
 // hoja Fondos: suma por fondo (Tranquilidad / Vacaciones) el aporte neto de cada uno (USD)
@@ -1185,9 +1217,10 @@ function renderPatrimonio(P){
   // Fondo de emergencia (Tranquilidad)
   if(pat.fondos){
     const t=pat.fondos.Tranquilidad, v=pat.fondos.Vacaciones;
-    const objT=EMERG_OBJ.Mati+EMERG_OBJ.Agos;
+    const EO=emergObj();
+    const objT=EO.Mati+EO.Agos;
     $('#emergencia').innerHTML = fundBlock(t.mati+t.agos, objT,
-      [{n:'Mati',v:t.mati,o:EMERG_OBJ.Mati,c:P.s[0]},{n:'Agos',v:t.agos,o:EMERG_OBJ.Agos,c:P.s[2]}], P);
+      [{n:'Mati',v:t.mati,o:EO.Mati,c:P.s[0]},{n:'Agos',v:t.agos,o:EO.Agos,c:P.s[2]}], P);
     $('#vacacionesUsd').innerHTML = fundBlock(v.mati+v.agos, null,
       [{n:'Mati',v:v.mati,c:P.s[0]},{n:'Agos',v:v.agos,c:P.s[2]}], P);
   } else {
@@ -1255,13 +1288,14 @@ function fillPeriodo(){
 }
 
 /* ---------- load (gviz + JSONP, sin CORS) ---------- */
-function loadGviz(sheet, fileId){
+function loadGviz(sheet, fileId, extra){
   sheet = sheet || SHEET_NAME;
   fileId = fileId || FILE_ID;
+  extra = extra || '';
   return new Promise((resolve,reject)=>{
     const cb='__gviz_'+Math.floor(performance.now())+'_'+(loadGviz._n=(loadGviz._n||0)+1);
     const url=`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq`+
-              `?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(sheet)}&nc=`+Math.floor(performance.now());
+              `?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(sheet)}${extra}&nc=`+Math.floor(performance.now());
     const s=document.createElement('script');
     let done=false;
     const cleanup=()=>{ try{delete window[cb]}catch(e){window[cb]=undefined} s.remove(); };
@@ -1276,10 +1310,11 @@ async function loadData(){
   setDot('load','cargando…');
   try{
     // Movimientos + Ingresos + Cuotas (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
-    const [movR, ingR, cuoR, cfgR, fondR, invR] = await Promise.allSettled([
+    const [movR, ingR, cuoR, cfgR, fondR, invR, gfR] = await Promise.allSettled([
       loadGviz(SHEET_NAME), loadGviz('INGRESOS'), loadGviz(SHEET_CUOTAS),
       loadGviz(SHEET_CONFIG),
-      loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID)
+      loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID),
+      loadGviz(SHEET_GASTOS_FIJOS, FIN_GEN_ID, '&headers=0')
     ]);
     if(movR.status!=='fulfilled') throw (movR.reason || new Error('script-error'));
     const resp=movR.value;
@@ -1303,6 +1338,11 @@ async function loadData(){
     STATE.baldesLive=null;
     if(cfgR.status==='fulfilled' && cfgR.value && cfgR.value.status!=='error'){
       try{ STATE.baldesLive = buildConfigBaldes(cfgR.value); }catch(e){ STATE.baldesLive=null; }
+    }
+    // objetivo del fondo de emergencia en vivo (hoja Gastos Fijos); si falla, cae a EMERG_OBJ
+    STATE.emergObjLive=null;
+    if(gfR.status==='fulfilled' && gfR.value && gfR.value.status!=='error'){
+      try{ STATE.emergObjLive = buildObjetivosEmerg(gfR.value); }catch(e){ STATE.emergObjLive=null; }
     }
     // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
     STATE.patrimonio=null;
