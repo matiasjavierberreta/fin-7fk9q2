@@ -167,7 +167,7 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
 
 <div class="topbar">
   <div class="row">
-    <div class="brand"><b>Mis Finanzas</b><span>Regla 50 / 20 / 20 / 10 · en vivo</span></div>
+    <div class="brand"><b>Mis Finanzas</b><span id="brandRule">Regla 50 / 20 / 20 / 10 · en vivo</span></div>
     <div class="ctl">
       <label class="mini" for="periodo" style="color:var(--muted)">Período</label>
       <select id="periodo" title="Elegí el mes"></select>
@@ -438,6 +438,7 @@ const $ = s => document.querySelector(s);
 let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null, cuotasLive:null, baldesLive:null };
 // porcentajes de baldes EN VIVO desde la hoja CONFIG (fallback: CONFIG.baldes horneado)
 function BALDES(){ return STATE.baldesLive || CONFIG.baldes; }
+function reglaTxt(sep){ const b=BALDES(); return [b.Esenciales,b.Personales,b.Ahorro,b.Vacaciones].map(v=>Math.round(v*100)).join(sep); }
 
 // La planilla se lee vía gviz + JSONP (carga por <script>, sin CORS).
 // Requiere que la planilla esté compartida como "Cualquiera con el enlace → Lector".
@@ -843,8 +844,9 @@ function buildInversiones(matrix){
       const ag=num(row[iAg]), ma=num(row[iMa]);
       if(!acc[act]) acc[act]={total:0,agos:0,mati:0,owners:new Set(),split:null};
       const a=acc[act]; a.total+=nom;
-      if(tipo.includes('split')) a.split={agos:ag,mati:ma};   // el split fija el total post-split
-      else { a.agos+=ag; a.mati+=ma; }
+      if(tipo.includes('split')){                              // el split fija el total post-split y reinicia el desglose
+        a.split={agos:ag,mati:ma}; a.agos=ag; a.mati=ma;
+      } else { a.agos+=ag; a.mati+=ma; }                      // filas posteriores al split suman encima
       if(ag>0) a.owners.add('agos'); if(ma>0) a.owners.add('mati');
     }
   }
@@ -852,7 +854,7 @@ function buildInversiones(matrix){
   for(const [act,a] of Object.entries(acc)){
     if(!(a.total>0)) continue;                                 // descarto lo vendido (neto 0 o negativo)
     let agos, mati;
-    if(a.split){ agos=a.split.agos; mati=a.split.mati; }       // split: usa el total reconciliado
+    if(a.split){ agos=a.agos; mati=a.mati; }                   // split: base reconciliada + compras/ventas posteriores
     else if(a.owners.size<=1){                                 // un solo dueño: le asigno el total del activo
       if(a.owners.has('mati')){ mati=a.total; agos=0; } else { agos=a.total; mati=0; }
     } else { agos=a.agos; mati=a.mati; }                       // varios dueños: suma de columnas
@@ -946,7 +948,7 @@ function statusFor(uso,pace,isSaving){
 }
 
 function renderKPIs(P,d){
-  const tasaObj=CONFIG.objetivoAhorro;
+  const tasaObj=BALDES().Ahorro;
   const tchip = d.tasa>=tasaObj? 'good' : (d.tasa>=tasaObj*0.6?'warn':'crit');
   const sChip = d.sinAsignar>=0?'good':'crit';
   const tiles=[
@@ -1100,7 +1102,8 @@ function renderTasa(P,anio){
   const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
   const data=keys.map(k=>{const m=STATE.model.byKey[k]; const ing=ingresoDe(anio,parseInt(k.slice(5))-1);
     return (m&&ing)? (m.baldes.Ahorro||0)/ing*100 : 0;});
-  const obj=CONFIG.objetivoAhorro*100;
+  const obj=Math.round(BALDES().Ahorro*1000)/10;
+  const ot=$('#objTasa'); if(ot) ot.textContent=String(obj).replace('.',',')+'%';
   const o=baseOpts(P);
   o.plugins.tooltip.callbacks.label=(c)=>`Tasa: ${fmt1.format(c.parsed.y)}%`;
   o.scales={ x:axis(P,{grid:{display:false}}),
@@ -1141,8 +1144,8 @@ function renderObjetivos(P,{anio,mi,ingreso,m}){
       <div class="mini" style="margin-top:4px">${done?'Objetivo cumplido':'Avance '+pct(obj?val/obj:0)}</div>
     </div>`;};
   $('#objetivos').innerHTML =
-    bar('Ahorro del mes (20%)',ahorro,ahorroObj,P.s[2]) +
-    bar('Vacaciones del mes (10%)',vac,vacObj,P.s[3]) +
+    bar(`Ahorro del mes (${Math.round(BALDES().Ahorro*100)}%)`,ahorro,ahorroObj,P.s[2]) +
+    bar(`Vacaciones del mes (${Math.round(BALDES().Vacaciones*100)}%)`,vac,vacObj,P.s[3]) +
     `<div class="obj"><div class="top"><span>Vacaciones acumuladas ${anio}</span><span class="mini">${fmt.format(vacAcc)}</span></div></div>`;
 }
 
@@ -1272,7 +1275,9 @@ function renderInvChart(P, serie){
 function renderFoot(){
   const cuotasFuente = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? 'en vivo desde tu hoja <b>Cuotas</b>' : `config editable (sync ${CONFIG.syncDate})`;
   $('#foot').innerHTML=`Datos de gastos e ingresos: en vivo desde tus hojas <b>Movimientos</b> e <b>INGRESOS</b>. Cuotas: ${cuotasFuente}.
-    · El tablero se actualiza cada vez que lo abrís y cada 15 min mientras esté abierto. · Regla 50/20/20/10.`;
+    · El tablero se actualiza cada vez que lo abrís y cada 15 min mientras esté abierto. · Regla ${reglaTxt('/')}.`;
+  const br=$('#brandRule'); if(br) br.textContent='Regla '+reglaTxt(' / ')+' · en vivo';
+  document.title='Finanzas · Presupuesto '+reglaTxt('/');
 }
 
 /* ---------- period selector ---------- */
