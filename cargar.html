@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cargar">
+<title>Cargar gasto</title>
+<style>
+:root{
+  --bg:#f6f6f3; --card:#fff; --ink:#16181d; --ink2:#5d6270; --line:#e3e3de;
+  --acc:#2f6fed; --acc-ink:#fff; --good:#1f9d61; --warn:#d99a00; --bad:#d64545;
+  --chip:#eeeeea; --r:14px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115; --card:#171a21; --ink:#eceef2; --ink2:#9aa1b0; --line:#262a33;
+  --acc:#5b8dff; --chip:#222630;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:12px 14px calc(96px + env(safe-area-inset-bottom))}
+h1{font-size:15px;font-weight:600;color:var(--ink2);margin:4px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+h1 button{background:none;border:0;color:var(--ink2);font-size:18px;padding:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);margin:0 0 8px}
+.res{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.res div{font-size:11px;color:var(--ink2);text-align:center}
+.res b{display:block;font-size:13px;color:var(--ink);margin-top:2px;white-space:nowrap}
+.bar{height:4px;border-radius:2px;background:var(--chip);margin-top:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--good)}
+.amt{display:flex;align-items:center;gap:6px}
+.amt span{font-size:30px;color:var(--ink2)}
+.amt input{flex:1;font-size:38px;font-weight:600;border:0;background:none;color:var(--ink);outline:none;width:100%;padding:0}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;gap:3px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:none;color:var(--ink2);padding:9px 2px;border-radius:8px;font-size:13px;font-weight:600}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 12px;font-size:14px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.chip.sm{padding:5px 10px;font-size:13px}
+input.txt,select{width:100%;font-size:16px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.mt{margin-top:10px}
+details summary{color:var(--ink2);font-size:14px;list-style:none;cursor:pointer}
+details summary::before{content:"＋ "}
+details[open] summary::before{content:"－ "}
+.sw{display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.sw input{width:44px;height:26px;accent-color:var(--acc)}
+.hint{font-size:13px;color:var(--ink2);margin-top:6px}
+.save{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
+.save button{display:block;width:100%;max-width:520px;margin:0 auto;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:700;background:var(--acc);color:var(--acc-ink)}
+.save button:disabled{opacity:.45}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.list li:first-child{border-top:0}
+.list small{color:var(--ink2)}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);opacity:0;transition:.25s;background:var(--ink);color:var(--bg);padding:11px 14px;border-radius:12px;font-size:14px;display:flex;gap:14px;align-items:center;max-width:92vw;z-index:9}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast button{background:none;border:0;color:var(--acc);font-weight:700;font-size:14px}
+.pend{background:var(--warn);color:#000;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:12px;display:none}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Configuración inicial -->
+  <section id="setup" class="card hide">
+    <p class="lbl">Configuración (una sola vez)</p>
+    <input id="sUrl" class="txt" placeholder="URL de la app web (https://script.google.com/...)" autocomplete="off">
+    <input id="sTok" class="txt mt" placeholder="Clave" autocomplete="off">
+    <div class="save" style="position:static;padding:12px 0 0;background:none"><button id="sOk">Guardar</button></div>
+    <p class="hint" id="sErr"></p>
+  </section>
+
+  <main id="app" class="hide">
+    <h1><span id="mes">Cargando…</span><button id="cfgBtn" aria-label="Configuración">⚙︎</button></h1>
+    <div class="pend" id="pend"></div>
+
+    <section class="card" id="resumen"><div class="res" id="res"></div></section>
+
+    <section class="card">
+      <div class="amt"><span>$</span><input id="monto" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+      <div class="hint" id="cuotaHint"></div>
+    </section>
+
+    <section class="card">
+      <div class="seg" id="baldes"></div>
+      <div class="chips" id="cats"></div>
+    </section>
+
+    <section class="card">
+      <input id="desc" class="txt" placeholder="Descripción (opcional)" autocomplete="off">
+      <div class="chips mt" id="sugs"></div>
+    </section>
+
+    <section class="card">
+      <p class="lbl">Medio de pago</p>
+      <div class="chips" id="medios"></div>
+      <p class="lbl mt">Quién pagó</p>
+      <div class="chips" id="quien"></div>
+    </section>
+
+    <section class="card">
+      <label class="sw">En cuotas <input type="checkbox" id="enCuotas"></label>
+      <div id="cuotasBox" class="hide mt">
+        <div class="row">
+          <div><p class="lbl">Cuotas</p><input id="cant" class="txt" inputmode="numeric" value="3"></div>
+          <div><p class="lbl">Primera cuota vence</p><input id="mesIni" class="txt" type="month"></div>
+        </div>
+        <label class="hint" style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <input type="checkbox" id="esPorCuota"> El monto que puse es por cuota (no el total)
+        </label>
+        <p class="hint">Va a la hoja Cuotas y se proyecta solo a cada mes de vencimiento.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary>Más opciones</summary>
+        <div class="row mt">
+          <div><p class="lbl">Fecha</p><input id="fecha" class="txt" type="date"></div>
+          <div><p class="lbl">Tipo</p><div class="seg" id="fv" style="margin:0"><button data-v="Variable">Variable</button><button data-v="Fijo">Fijo</button></div></div>
+        </div>
+        <p class="lbl mt">Notas</p>
+        <input id="notas" class="txt" autocomplete="off">
+      </details>
+    </section>
+
+    <section class="card">
+      <p class="lbl">Últimos cargados</p>
+      <ul class="list" id="rec"></ul>
+    </section>
+  </main>
+</div>
+
+<div class="save hide" id="saveBar"><button id="guardar" disabled>Guardar</button></div>
+<div class="toast" id="toast"><span id="tMsg"></span><button id="tUndo" class="hide">Deshacer</button></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbyn5rJjUSzyOmjEuuUdepF0fIh9qNSG0TPPbVWyninN6SsrHNlJGdPlvEwWlJdqYGlKGw/exec';
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem('cg_'+k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('cg_'+k, JSON.stringify(v)); }catch(e){} }
+};
+const fmt = n => '$' + Math.round(n||0).toLocaleString('es-AR');
+const parseMonto = s => { s = String(s).trim().replace(/\s|\$/g,''); if(!s) return NaN;
+  if (s.includes(',')) s = s.replace(/\./g,'').replace(',', '.'); else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,'');
+  return Number(s); };
+const hoy = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const mesSig = () => { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
+
+let cfg = LS.get('cfg', null);           // última config (para abrir offline)
+let st = { balde:'Esenciales', cat:null, medio:LS.get('medio',''), quien:LS.get('quien','Mati'), fv:'Variable' };
+let last = null;                         // último guardado, para deshacer
+
+/* ---------- API ---------- */
+const api = async (body) => {
+  const url = LS.get('url',DEFAULT_URL); body.token = LS.get('tok','');
+  const r = await fetch(url, { method:'POST', body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Error');
+  return j;
+};
+
+/* ---------- setup ---------- */
+function showSetup(msg){
+  $('setup').classList.remove('hide'); $('app').classList.add('hide'); $('saveBar').classList.add('hide');
+  $('sUrl').value = LS.get('url',DEFAULT_URL); $('sTok').value = LS.get('tok',''); $('sErr').textContent = msg||'';
+}
+$('sOk').onclick = async () => {
+  LS.set('url', $('sUrl').value.trim()); LS.set('tok', $('sTok').value.trim());
+  $('sErr').textContent = 'Probando…';
+  try { await cargarConfig(); $('setup').classList.add('hide'); }
+  catch(e){ $('sErr').textContent = 'No funcionó: ' + e.message; }
+};
+$('cfgBtn').onclick = () => showSetup();
+
+/* ---------- render ---------- */
+function render(){
+  $('app').classList.remove('hide'); $('saveBar').classList.remove('hide');
+  renderResumen(cfg.resumen);
+  const baldes = [...new Set(cfg.cats.map(c=>c.balde))];
+  $('baldes').innerHTML = baldes.map(b=>`<button data-b="${b}" class="${b===st.balde?'on':''}">${b}</button>`).join('');
+  $('baldes').querySelectorAll('button').forEach(b=>b.onclick=()=>{ st.balde=b.dataset.b; st.cat=null; render(); });
+  const cats = cfg.cats.filter(c=>c.balde===st.balde);
+  $('cats').innerHTML = cats.map((c,i)=>`<button class="chip ${c.cat===st.cat?'on':''}" data-i="${i}">${c.cat}</button>`).join('');
+  $('cats').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ const c=cats[el.dataset.i]; st.cat=c.cat; setFv(c.fv); render(); });
+  const cur = cats.find(c=>c.cat===st.cat);
+  $('sugs').innerHTML = (cur?cur.sug:[]).map(s=>`<button class="chip sm">${s}</button>`).join('');
+  $('sugs').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ $('desc').value=el.textContent; validar(); });
+  pills('medios', cfg.medios, 'medio'); pills('quien', cfg.quien, 'quien');
+  $('rec').innerHTML = (cfg.recientes||[]).map(r=>`<li><span>${r.desc||r.cat} <small>· ${r.cat} · ${r.fecha}</small></span><b>${fmt(r.monto)}</b></li>`).join('') || '<li><small>Nada todavía</small></li>';
+  validar();
+}
+function pills(id, arr, key){
+  $(id).innerHTML = arr.map(v=>`<button class="chip ${v===st[key]?'on':''}">${v}</button>`).join('');
+  $(id).querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ st[key] = st[key]===el.textContent?'':el.textContent; LS.set(key, st[key]); pills(id, arr, key); });
+}
+function renderResumen(r){
+  if(!r) return;
+  $('mes').textContent = 'Disponible · ' + r.mes;
+  $('res').innerHTML = r.baldes.map(b=>{
+    const u = Math.max(0, Math.min(1, b.uso||0));
+    const col = u>=.95?'var(--bad)':u>=.75?'var(--warn)':'var(--good)';
+    return `<div>${b.balde}<b style="color:${b.disponible<0?'var(--bad)':'inherit'}">${fmt(b.disponible)}</b><div class="bar"><i style="width:${u*100}%;background:${col}"></i></div></div>`;
+  }).join('');
+}
+function setFv(v){ st.fv=v; $('fv').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
+$('fv').querySelectorAll('button').forEach(b=>b.onclick=()=>setFv(b.dataset.v));
+
+function validar(){
+  const m = parseMonto($('monto').value);
+  const enC = $('enCuotas').checked, cant = parseInt($('cant').value,10);
+  if (enC && m>0 && cant>0) {
+    $('cuotaHint').textContent = $('esPorCuota').checked
+      ? `${cant} cuotas de ${fmt(m)} · total ${fmt(m*cant)}`
+      : `${cant} cuotas de ${fmt(m/cant)}`;
+  } else $('cuotaHint').textContent = '';
+  $('guardar').disabled = !(m>0 && st.cat && (!enC || cant>0));
+}
+['monto','cant'].forEach(id=>$(id).addEventListener('input', validar));
+$('esPorCuota').onchange = validar;
+$('enCuotas').onchange = () => { $('cuotasBox').classList.toggle('hide', !$('enCuotas').checked); validar(); };
+
+/* ---------- guardar ---------- */
+$('guardar').onclick = async () => {
+  const m = parseMonto($('monto').value), enC = $('enCuotas').checked;
+  const base = { balde:st.balde, cat:st.cat, desc:$('desc').value.trim(), notas:$('notas').value.trim() };
+  let body;
+  if (enC) {
+    const cant = parseInt($('cant').value,10);
+    body = { ...base, action:'cuota', cuotas:cant, montoCuota: Math.round(($('esPorCuota').checked ? m : m/cant)*100)/100, mesInicio:$('mesIni').value || mesSig() };
+  } else {
+    body = { ...base, action:'gasto', monto:m, fecha:$('fecha').value || hoy(), medio:st.medio, quien:st.quien, fv:st.fv };
+  }
+  $('guardar').disabled = true; $('guardar').textContent = 'Guardando…';
+  try {
+    const j = await api(body);
+    last = { hoja:j.hoja, fila:j.fila };
+    cfg.resumen = j.resumen;
+    if (!enC) cfg.recientes = [{ fecha: body.fecha.slice(8,10)+'/'+body.fecha.slice(5,7), cat:body.cat, desc:body.desc, monto:body.monto }, ...(cfg.recientes||[])].slice(0,8);
+    LS.set('cfg', cfg);
+    toast(enC ? `Plan de cuotas cargado` : `${fmt(m)} en ${st.cat}`, true);
+    limpiar();
+  } catch(e) {
+    if (e instanceof TypeError) { encolar(body); toast('Sin conexión: quedó pendiente, se envía solo'); limpiar(); }
+    else toast('Error: ' + e.message);
+  } finally { $('guardar').textContent = 'Guardar'; validar(); }
+};
+function limpiar(){
+  $('monto').value=''; $('desc').value=''; $('notas').value=''; $('fecha').value=hoy();
+  $('enCuotas').checked=false; $('cuotasBox').classList.add('hide'); $('esPorCuota').checked=false;
+  st.cat=null; render(); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------- deshacer ---------- */
+$('tUndo').onclick = async () => {
+  if (!last) return; const l = last; last = null; hideToast();
+  try { const j = await api({ action:'deshacer', ...l }); cfg.resumen=j.resumen; if(l.hoja==='Movimientos') cfg.recientes.shift(); render(); toast('Deshecho'); }
+  catch(e){ toast('No se pudo deshacer: '+e.message); }
+};
+let tt;
+function toast(msg, undo){
+  $('tMsg').textContent = msg; $('tUndo').classList.toggle('hide', !undo);
+  $('toast').classList.add('show'); clearTimeout(tt); tt = setTimeout(hideToast, undo?6000:3000);
+}
+function hideToast(){ $('toast').classList.remove('show'); }
+
+/* ---------- cola offline ---------- */
+function encolar(b){ const q=LS.get('cola',[]); q.push(b); LS.set('cola',q); mostrarCola(); }
+function mostrarCola(){ const n=LS.get('cola',[]).length; $('pend').style.display=n?'block':'none'; $('pend').textContent=`${n} pendiente${n>1?'s':''} de enviar`; }
+async function vaciarCola(){
+  let q = LS.get('cola',[]); if(!q.length) return;
+  while(q.length){ try{ const j=await api(q[0]); cfg.resumen=j.resumen; q.shift(); LS.set('cola',q); } catch(e){ break; } }
+  mostrarCola();
+}
+window.addEventListener('online', ()=>vaciarCola().then(cargarConfig).catch(()=>{}));
+
+/* ---------- inicio ---------- */
+async function cargarConfig(){
+  const url = LS.get('url',DEFAULT_URL), tok = LS.get('tok','');
+  const r = await fetch(url + (url.includes('?')?'&':'?') + 'action=config&token=' + encodeURIComponent(tok));
+  const j = await r.json(); if(!j.ok) throw new Error(j.error);
+  cfg = j; LS.set('cfg', cfg); render();
+}
+$('fecha').value = hoy(); $('mesIni').value = mesSig(); setFv('Variable'); mostrarCola();
+if (!LS.get('url',DEFAULT_URL) || !LS.get('tok','')) showSetup();
+else {
+  if (cfg) render();
+  vaciarCola().then(cargarConfig).catch(e => { if(!cfg) showSetup('No pude conectar: '+e.message); });
+}
+})();
+</script>
+</body>
+</html>
