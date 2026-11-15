@@ -1009,11 +1009,11 @@ function render(){
 const CASA_GRUPOS=[
   {k:'Alquiler',     cats:['Alquiler']},
   {k:'Expensas',     cats:['Expensas']},
-  {k:'Servicios',    cats:['Servicios (luz/agua/gas)','Internet y Celular']},
+  {k:'Servicios',    cats:['Servicios (luz/agua/gas)','Internet y Celular','Seguro depto']},
   {k:'Auto',         cats:['Nafta','Auto','Seguro auto','Patente','Estacionamiento y Transporte']},
   {k:'Supermercado', cats:['Supermercado']}
 ];
-const CASA_ALIAS={'Auto':'Mantenimiento, peajes, lavados','Estacionamiento y Transporte':'Estacionamiento','Seguro auto':'Seguro','Servicios (luz/agua/gas)':'Luz, agua, gas','Internet y Celular':'Internet y celular'};
+const CASA_ALIAS={'Auto':'Mantenimiento, peajes, lavados','Estacionamiento y Transporte':'Estacionamiento','Seguro auto':'Seguro','Servicios (luz/agua/gas)':'Luz, agua, gas','Internet y Celular':'Internet y celular','Seguro depto':'Seguro depto'};
 function casaVals(key){
   const m=STATE.model.byKey[key];
   return CASA_GRUPOS.map(g=>g.cats.reduce((a,c)=>a+((m&&m.cats[c])||0),0));
