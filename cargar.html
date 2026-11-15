@@ -106,6 +106,8 @@ details[open] summary::before{content:"－ "}
       <div class="chips" id="medios"></div>
       <p class="lbl mt">Quién pagó</p>
       <div class="chips" id="quien"></div>
+      <label class="sw mt hide" id="divBox" style="font-weight:500">Dividir con Agos (50% cada uno) <input type="checkbox" id="dividir"></label>
+      <p class="hint hide" id="divHint"></p>
     </section>
 
     <section class="card">
@@ -204,7 +206,7 @@ function render(){
 }
 function pills(id, arr, key){
   $(id).innerHTML = arr.map(v=>`<button class="chip ${v===st[key]?'on':''}">${v}</button>`).join('');
-  $(id).querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ st[key] = st[key]===el.textContent?'':el.textContent; LS.set(key, st[key]); pills(id, arr, key); });
+  $(id).querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ st[key] = st[key]===el.textContent?'':el.textContent; LS.set(key, st[key]); pills(id, arr, key); if(key==='quien') validar(); });
 }
 function renderResumen(r){
   if(!r) return;
@@ -220,6 +222,11 @@ $('fv').querySelectorAll('button').forEach(b=>b.onclick=()=>setFv(b.dataset.v));
 
 function validar(){
   const m = parseMonto($('monto').value);
+  const comun = st.quien === 'Comun';
+  $('divBox').classList.toggle('hide', !comun);
+  const div = comun && $('dividir').checked;
+  $('divHint').classList.toggle('hide', !(div && m>0));
+  if (div && m>0) $('divHint').textContent = `Se carga ${fmt(m/2)} en tu planilla y ${fmt(m/2)} en la de Agos`;
   const enC = $('enCuotas').checked, cant = parseInt($('cant').value,10);
   if (enC && m>0 && cant>0) {
     $('cuotaHint').textContent = $('esPorCuota').checked
@@ -230,12 +237,15 @@ function validar(){
 }
 ['monto','cant'].forEach(id=>$(id).addEventListener('input', validar));
 $('esPorCuota').onchange = validar;
+$('dividir').checked = LS.get('dividir', true);
+$('dividir').onchange = () => { LS.set('dividir', $('dividir').checked); validar(); };
 $('enCuotas').onchange = () => { $('cuotasBox').classList.toggle('hide', !$('enCuotas').checked); validar(); };
 
 /* ---------- guardar ---------- */
 $('guardar').onclick = async () => {
   const m = parseMonto($('monto').value), enC = $('enCuotas').checked;
-  const base = { balde:st.balde, cat:st.cat, desc:$('desc').value.trim(), notas:$('notas').value.trim() };
+  const dividir = st.quien === 'Comun' && $('dividir').checked;
+  const base = { balde:st.balde, cat:st.cat, desc:$('desc').value.trim(), notas:$('notas').value.trim(), dividir };
   let body;
   if (enC) {
     const cant = parseInt($('cant').value,10);
@@ -246,11 +256,11 @@ $('guardar').onclick = async () => {
   $('guardar').disabled = true; $('guardar').textContent = 'Guardando…';
   try {
     const j = await api(body);
-    last = { hoja:j.hoja, fila:j.fila };
+    last = { hoja:j.hoja, fila:j.fila, filaAgos:j.filaAgos };
     cfg.resumen = j.resumen;
-    if (!enC) cfg.recientes = [{ fecha: body.fecha.slice(8,10)+'/'+body.fecha.slice(5,7), cat:body.cat, desc:body.desc, monto:body.monto }, ...(cfg.recientes||[])].slice(0,8);
+    if (!enC) cfg.recientes = [{ fecha: body.fecha.slice(8,10)+'/'+body.fecha.slice(5,7), cat:body.cat, desc:body.desc, monto: dividir ? body.monto/2 : body.monto }, ...(cfg.recientes||[])].slice(0,8);
     LS.set('cfg', cfg);
-    toast(enC ? `Plan de cuotas cargado` : `${fmt(m)} en ${st.cat}`, true);
+    toast(j.aviso ? j.aviso : (enC ? `Plan de cuotas cargado${dividir?' (mitad a cada uno)':''}` : dividir ? `${fmt(m/2)} a cada uno en ${st.cat}` : `${fmt(m)} en ${st.cat}`), true);
     limpiar();
   } catch(e) {
     if (e instanceof TypeError) { encolar(body); toast('Sin conexión: quedó pendiente, se envía solo'); limpiar(); }
