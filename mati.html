@@ -284,55 +284,23 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
 
     <!-- VIEW 2: en qué se va la plata -->
     <div class="sec">
-      <div class="sec-h"><h2>En qué se va la plata</h2><span class="kick">categorías · fijo vs variable</span></div>
-      <div class="grid g2">
-        <div class="card">
-          <h3>Top categorías del mes</h3>
-          <p class="sub" id="topSub"></p>
-          <div class="cwrap h340"><canvas id="cTop"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>Este mes vs promedio 6 meses</h3>
-          <p class="sub">Dónde gastaste más o menos que tu costumbre</p>
-          <div class="cwrap h340"><canvas id="cVs"></canvas></div>
-          <div class="legend" id="vsLeg"></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card">
-          <h3>Fijo vs variable</h3>
-          <p class="sub">Cuánto de tu gasto es comprometido vs discrecional</p>
-          <div class="cwrap h220"><canvas id="cFV"></canvas></div>
-          <div class="legend" id="fvLeg"></div>
-        </div>
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <h3>Detalle por categoría</h3>
-            <button class="btn" id="tblToggle" style="font-size:12px">Ver tabla ▾</button>
-          </div>
-          <p class="sub">Tabla del mes seleccionado (accesible / exportable)</p>
-          <div class="tblwrap hide" id="tblwrap"><table id="catTable"></table></div>
-          <div id="tblHint" class="mini">Tocá "Ver tabla" para ver todos los montos del mes.</div>
-        </div>
+      <div class="sec-h"><h2>En qué se va la plata</h2><span class="kick">categorías del mes</span></div>
+      <div class="card">
+        <h3>Top categorías del mes</h3>
+        <p class="sub" id="topSub"></p>
+        <div class="cwrap h340"><canvas id="cTop"></canvas></div>
       </div>
     </div>
 
     <!-- VIEW 3: ahorro y objetivos -->
     <div class="sec">
       <div class="sec-h"><h2>Ahorro &amp; objetivos</h2><span class="kick">tasa de ahorro · metas</span></div>
-      <div class="grid g2">
+      <div class="grid g3">
         <div class="card">
           <h3>Tasa de ahorro mensual</h3>
           <p class="sub">Ahorro sobre ingreso · objetivo <span id="objTasa">20%</span></p>
           <div class="cwrap h260"><canvas id="cTasa"></canvas></div>
         </div>
-        <div class="card">
-          <h3>Ahorro acumulado del año</h3>
-          <p class="sub" id="acumSub">Cuánto llevás guardado en <span id="acumYear"></span></p>
-          <div class="cwrap h260"><canvas id="cAcum"></canvas></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
         <div class="card">
           <h3>Objetivos del mes</h3>
           <p class="sub">Avance de ahorro y vacaciones</p>
@@ -956,11 +924,7 @@ function render(){
   renderPct(P,anio);
   renderBaldeDonut(P,m);
   renderTop(P,m);
-  renderVs(P,key,m);
-  renderFV(P,m);
-  renderTable(m);
   renderTasa(P,anio);
-  renderAcum(P,anio);
   renderObjetivos(P,{anio,mi,ingreso,m});
   renderComp(P,m,anio);
   renderCuotas(P,key);
@@ -1150,47 +1114,6 @@ function renderTop(P,m){
     options:o});
 }
 
-function renderVs(P,key,m){
-  const prev=prevKeys(key,6);
-  const catTot={}; const catCount={};
-  for(const pk of prev){ const pm=STATE.model.byKey[pk]; if(!pm)continue;
-    for(const [c,v] of Object.entries(pm.cats)){ catTot[c]=(catTot[c]||0)+v; catCount[c]=(catCount[c]||0)+1; } }
-  const cats = m? Object.entries(m.cats).sort((a,b)=>b[1]-a[1]).slice(0,8) : [];
-  const labels=cats.map(c=>c[0]);
-  const mesData=cats.map(c=>c[1]);
-  const avgData=cats.map(c=>{const n=catCount[c[0]]||0; return n?catTot[c[0]]/n:0;});
-  const o=baseOpts(P); o.indexAxis='y';
-  o.interaction={intersect:false,mode:'index',axis:'y'}; // barras horizontales: el tooltip sigue la FILA (eje Y), no la posición X del cursor
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.dataset.label}: ${fmt.format(c.parsed.x)}`;
-  o.scales={ x:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}),
-             y:axis(P,{grid:{display:false},ticks:{color:P.ink2,font:{size:11.5}}}) };
-  STATE.charts.vs=new Chart($('#cVs'),{type:'bar',data:{labels,datasets:[
-    {label:'Este mes',data:mesData,backgroundColor:P.s[0],borderRadius:4,barPercentage:.9,categoryPercentage:.7},
-    {label:'Prom. 6m',data:avgData,backgroundColor:P.s[1],borderRadius:4,barPercentage:.9,categoryPercentage:.7}
-  ]},options:o});
-  legendInto($('#vsLeg'),[{l:'Este mes',c:P.s[0]},{l:'Promedio 6 meses',c:P.s[1]}]);
-}
-
-function renderFV(P,m){
-  const fv=m?m.fv:{Fijo:0,Variable:0};
-  const vals=[fv.Fijo||0,fv.Variable||0]; const tot=vals[0]+vals[1]||1;
-  const o=baseOpts(P); o.cutout='62%';
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.label}: ${fmt.format(c.parsed)} (${pct(c.parsed/tot)})`;
-  STATE.charts.fv=new Chart($('#cFV'),{type:'doughnut',
-    data:{labels:['Fijo','Variable'],datasets:[{data:vals,backgroundColor:[P.s[0],P.s[1]],borderColor:P.surface,borderWidth:2,hoverOffset:6}]},
-    options:o});
-  legendInto($('#fvLeg'),[{l:`Fijo · ${pct(vals[0]/tot)}`,c:P.s[0]},{l:`Variable · ${pct(vals[1]/tot)}`,c:P.s[1]}]);
-}
-
-function renderTable(m){
-  const cats = m? Object.entries(m.cats).sort((a,b)=>b[1]-a[1]) : [];
-  const tot=cats.reduce((a,c)=>a+c[1],0)||1;
-  let h=`<thead><tr><th>Categoría</th><th>Balde</th><th>Monto</th><th>%</th></tr></thead><tbody>`;
-  for(const [c,v] of cats){ h+=`<tr><td>${c}</td><td>${m.catBalde[c]||''}</td><td>${fmt.format(v)}</td><td>${pct(v/tot)}</td></tr>`; }
-  h+=`<tr style="font-weight:700"><td>Total</td><td></td><td>${fmt.format(tot)}</td><td>100%</td></tr></tbody>`;
-  $('#catTable').innerHTML=h;
-}
-
 function renderTasa(P,anio){
   const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
   const data=keys.map(k=>{const m=STATE.model.byKey[k]; const ing=ingresoDe(anio,parseInt(k.slice(5))-1);
@@ -1208,21 +1131,6 @@ function renderTasa(P,anio){
   STATE.charts.tasa=new Chart($('#cTasa'),{type:'line',
     data:{labels:MES_ABBR,datasets:[{data,borderColor:P.s[2],backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
     options:o, plugins:[objLine]});
-}
-
-function renderAcum(P,anio){
-  $('#acumYear').textContent=anio;
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  let acc=0; const data=keys.map(k=>{acc+=STATE.model.byKey[k]?.baldes.Ahorro||0; return acc;});
-  const grad = (ctx)=>{ const {ctx:c,chartArea:a}=ctx.chart; if(!a) return 'transparent';
-    const g=c.createLinearGradient(0,a.top,0,a.bottom); g.addColorStop(0,P.s[0]+'55');g.addColorStop(1,P.s[0]+'05');return g;};
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>`Acumulado: ${fmt.format(c.parsed.y)}`;
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1e6).toFixed(1)+'M'}}) };
-  STATE.charts.acum=new Chart($('#cAcum'),{type:'line',
-    data:{labels:MES_ABBR,datasets:[{data,borderColor:P.s[0],backgroundColor:grad,fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
-    options:o});
 }
 
 function renderObjetivos(P,{anio,mi,ingreso,m}){
@@ -1493,8 +1401,6 @@ function init(){
   $('#retry').addEventListener('click',()=>{ $('#setuperr').textContent=''; STATE.demo=false; STATE.manual=false; loadData(); });
   $('#filein').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) loadFile(f); });
   $('#demoBtn').addEventListener('click',()=>{ STATE.demo=true; loadData(); });
-  $('#tblToggle').addEventListener('click',()=>{ const w=$('#tblwrap'),h=$('#tblHint'),b=$('#tblToggle');
-    const show=w.classList.contains('hide'); w.classList.toggle('hide',!show); h.classList.toggle('hide',show); b.textContent=show?'Ocultar tabla ▴':'Ver tabla ▾'; });
 
   const hash=location.hash.toLowerCase();
   if(hash.includes('demo')){ STATE.demo=true; loadData(); }
