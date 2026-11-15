@@ -118,6 +118,15 @@ h1{font-size:0;margin:0}
 :root[data-theme="dark"] .chip.serious{color:var(--serious)}
 
 /* Budget bullets */
+.casa-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-top:1px solid var(--border)}
+.casa-row:first-child{border-top:0;padding-top:0}
+.casa-row .nm{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px}
+.casa-row .am{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;text-align:right}
+.casa-row .dt{font-size:11.5px;color:var(--muted)}
+.casa-row .cmp{font-size:11.5px;text-align:right;white-space:nowrap}
+.casa-row .cmp.up{color:var(--serious)} .casa-row .cmp.down{color:var(--goodink)} .casa-row .cmp.eq{color:var(--muted)}
+.casa-tot{display:flex;justify-content:space-between;align-items:baseline;padding-top:10px;margin-top:4px;border-top:2px solid var(--border);font-weight:700}
+.casa-tot .mini{font-weight:400}
 .bullet{margin:0 0 14px}
 .bullet:last-child{margin-bottom:0}
 .bullet .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
@@ -222,6 +231,24 @@ thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppe
     <!-- KPIs -->
     <div class="sec" style="margin-top:22px">
       <div class="grid g4" id="kpis"></div>
+    </div>
+
+    <!-- VIEW: gastos de la casa -->
+    <div class="sec">
+      <div class="sec-h"><h2>Gastos de la casa</h2><span class="kick">alquiler · expensas · servicios · auto · súper</span></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Este mes</h3>
+          <p class="sub" id="casaSub"></p>
+          <div id="casaRows"></div>
+        </div>
+        <div class="card">
+          <h3>Evolución mensual</h3>
+          <p class="sub">Gastos de la casa por rubro · <span id="casaYear"></span></p>
+          <div class="cwrap h300"><canvas id="cCasa"></canvas></div>
+          <div class="legend" id="casaLeg"></div>
+        </div>
+      </div>
     </div>
 
     <!-- VIEW 1: baldes + evolución -->
@@ -923,6 +950,7 @@ function render(){
 
   destroyAll();
   renderKPIs(P,{ingreso,gastos,guardado,tasa,sinAsignar,totalOut,ingLive:ingresoEsLive(anio,mi)});
+  renderCasa(P,key,m,ingreso);
   renderBullets(P,{anio,mi,ingreso,m});
   renderEvo(P,anio);
   renderPct(P,anio);
@@ -938,6 +966,66 @@ function render(){
   renderCuotas(P,key);
   renderPatrimonio(P);
   renderFoot();
+}
+
+/* ---------- gastos de la casa ---------- */
+// Rubros agrupando categorías de la hoja Movimientos (los nombres llegan sin espacios al final)
+const CASA_GRUPOS=[
+  {k:'Alquiler',     cats:['Alquiler']},
+  {k:'Expensas',     cats:['Expensas']},
+  {k:'Servicios',    cats:['Servicios (luz/agua/gas)','Internet y Celular']},
+  {k:'Auto',         cats:['Nafta','Auto','Seguro auto','Patente','Estacionamiento y Transporte']},
+  {k:'Supermercado', cats:['Supermercado']}
+];
+const CASA_ALIAS={'Auto':'Mantenimiento, peajes, lavados','Estacionamiento y Transporte':'Estacionamiento','Seguro auto':'Seguro','Servicios (luz/agua/gas)':'Luz, agua, gas','Internet y Celular':'Internet y celular'};
+function casaVals(key){
+  const m=STATE.model.byKey[key];
+  return CASA_GRUPOS.map(g=>g.cats.reduce((a,c)=>a+((m&&m.cats[c])||0),0));
+}
+function renderCasa(P,key,m,ingreso){
+  const vals=casaVals(key);
+  const prev=prevKeys(key,6).filter(k=>STATE.model.byKey[k]);
+  const avg=CASA_GRUPOS.map((g,i)=>prev.length? prev.reduce((a,k)=>a+casaVals(k)[i],0)/prev.length : 0);
+  const now=new Date();
+  const isCur=key===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const tot=vals.reduce((a,b)=>a+b,0);
+  $('#casaSub').textContent=(m?`${m.mes} ${m.anio}`:'')+(isCur?' · mes en curso':'')+(prev.length?` · comparado con el promedio de ${prev.length} mes${prev.length>1?'es':''}`:'');
+  let h='';
+  CASA_GRUPOS.forEach((g,i)=>{
+    const v=vals[i], a=avg[i];
+    let cmp='<span class="cmp eq">sin historial</span>';
+    if(isCur && v===0 && a>0) cmp=`<span class="cmp eq">sin cargar todavía · prom. ${fmt.format(a)}</span>`;
+    else if(a>0){
+      const d=(v-a)/a;
+      const cls= d>0.1?'up':(d<-0.1?'down':'eq');
+      const arrow= d>0.1?'▲':(d<-0.1?'▼':'≈');
+      cmp=`<span class="cmp ${cls}">${arrow} ${pct(Math.abs(d))} vs prom. ${fmt.format(a)}</span>`;
+    }
+    const parts = g.cats.length>1 && m ? g.cats.map(c=>[c,m.cats[c]||0]).filter(x=>x[1]>0).sort((x,y)=>y[1]-x[1])
+      .map(([c,x])=>`${CASA_ALIAS[c]||c} ${fmt.format(x)}`).join(' · ') : '';
+    h+=`<div class="casa-row">
+      <span class="nm"><span class="dotb" style="background:${P.s[i]}"></span>${g.k}</span>
+      <span class="am">${fmt.format(v)}</span>
+      <span class="dt">${parts||(tot?pct(v/tot)+' del total':'')}</span>
+      ${cmp}
+    </div>`;
+  });
+  h+=`<div class="casa-tot"><span>Total</span><span>${fmt.format(tot)} <span class="mini">${ingreso?'· '+pct(tot/ingreso)+' del ingreso':''}</span></span></div>`;
+  $('#casaRows').innerHTML=h;
+
+  const anio=key.slice(0,4);
+  $('#casaYear').textContent=anio;
+  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
+  const serie=keys.map(k=>casaVals(k));
+  const ds=CASA_GRUPOS.map((g,i)=>({label:g.k,data:serie.map(v=>v[i]),backgroundColor:P.s[i],stack:'c',
+    borderRadius:3,borderWidth:2,borderColor:P.surface,barPercentage:.8,categoryPercentage:.72}));
+  const o=baseOpts(P);
+  o.plugins.tooltip.callbacks.label=(c)=>`${c.dataset.label}: ${fmt.format(c.parsed.y)}`;
+  o.plugins.tooltip.callbacks.footer=(items)=>'Total: '+fmt.format(items.reduce((a,c)=>a+c.parsed.y,0));
+  o.scales={ x:axis(P,{stacked:true,grid:{display:false}}),
+             y:axis(P,{stacked:true,ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}) };
+  STATE.charts.casa=new Chart($('#cCasa'),{type:'bar',data:{labels:MES_ABBR,datasets:ds},options:o});
+  legendInto($('#casaLeg'),CASA_GRUPOS.map((g,i)=>({l:g.k,c:P.s[i]})));
 }
 
 function statusFor(uso,pace,isSaving){
