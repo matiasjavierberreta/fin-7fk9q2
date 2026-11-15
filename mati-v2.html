@@ -637,7 +637,7 @@ function buildRowsFromMatrix(raw0){
       monto,
       medio: norm(row[map.medio]),
       fv: (norm(row[map.fv])||'').toLowerCase().startsWith('f')?'Fijo':(norm(row[map.fv])?'Variable':'—'),
-      dia: diaDe(map.fecha>=0? row[map.fecha] : '')
+      dia: diaDe(row[map.fecha>=0? map.fecha : 0])
     });
   }
   return out;
