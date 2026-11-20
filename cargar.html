@@ -66,6 +66,10 @@ details[open] summary::before{content:"－ "}
 .toast button{background:none;border:0;color:var(--acc);font-weight:700;font-size:14px}
 .pend{background:var(--warn);color:#000;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:12px;display:none}
 .hide{display:none!important}
+.quick{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+.quick::-webkit-scrollbar{display:none}
+.quick .chip{white-space:nowrap;flex:none}
+h1 a{color:var(--ink2);text-decoration:none;font-size:18px;padding:4px}
 </style>
 </head>
 <body>
@@ -81,7 +85,7 @@ details[open] summary::before{content:"－ "}
   </section>
 
   <main id="app" class="hide">
-    <h1><span id="mes">Cargando…</span><button id="cfgBtn" aria-label="Configuración">⚙︎</button></h1>
+    <h1><span id="mes">Cargando…</span><span><a id="dashLink" href="mati.html" aria-label="Ver tablero">📊</a><button id="cfgBtn" aria-label="Configuración">⚙︎</button></span></h1>
     <div class="pend" id="pend"></div>
 
     <section class="card" id="resumen"><div class="res" id="res"></div></section>
@@ -92,6 +96,8 @@ details[open] summary::before{content:"－ "}
     </section>
 
     <section class="card">
+      <p class="lbl" id="quickLbl">Lo que más cargás</p>
+      <div class="quick" id="quick"></div>
       <div class="seg" id="baldes"></div>
       <div class="chips" id="cats"></div>
     </section>
@@ -106,7 +112,7 @@ details[open] summary::before{content:"－ "}
       <div class="chips" id="medios"></div>
       <p class="lbl mt">Quién pagó</p>
       <div class="chips" id="quien"></div>
-      <label class="sw mt hide" id="divBox" style="font-weight:500">Dividir con Agos (50% cada uno) <input type="checkbox" id="dividir"></label>
+      <label class="sw mt hide" id="divBox" style="font-weight:500"><span>Dividir con <span id="otroNom">Agos</span> (50% cada uno)</span> <input type="checkbox" id="dividir"></label>
       <p class="hint hide" id="divHint"></p>
     </section>
 
@@ -161,8 +167,10 @@ const parseMonto = s => { s = String(s).trim().replace(/\s|\$/g,''); if(!s) retu
 const hoy = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const mesSig = () => { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 
+// Link de configuración: cargar.html#k=CLAVE (se guarda y se borra de la barra)
+(() => { const m = location.hash.match(/[#&]k=([^&]+)/); if (m) { LS.set('tok', decodeURIComponent(m[1])); LS.set('url', DEFAULT_URL); LS.set('cfg', null); localStorage.removeItem('cg_quien'); history.replaceState(null, '', location.pathname); } })();
 let cfg = LS.get('cfg', null);           // última config (para abrir offline)
-let st = { balde:'Esenciales', cat:null, medio:LS.get('medio',''), quien:LS.get('quien','Mati'), fv:'Variable' };
+let st = { balde:LS.get('balde','Esenciales'), cat:null, medio:LS.get('medio',''), quien:LS.get('quien',''), fv:'Variable' };
 let last = null;                         // último guardado, para deshacer
 
 /* ---------- API ---------- */
@@ -191,10 +199,19 @@ $('cfgBtn').onclick = () => showSetup();
 function render(){
   $('app').classList.remove('hide'); $('saveBar').classList.remove('hide');
   renderResumen(cfg.resumen);
+  const yo = cfg.yo || 'Mati', otro = cfg.otro || 'Agos';
+  if (!st.quien) st.quien = yo;
+  $('otroNom').textContent = otro;
+  $('dashLink').href = yo === 'Agos' ? 'agos.html' : 'mati.html';
+  // Atajos: las categorías más usadas (de todos los baldes)
+  const top = cfg.cats.filter(c=>c.n>0).sort((a,b)=>b.n-a.n).slice(0,8);
+  $('quickLbl').classList.toggle('hide', !top.length);
+  $('quick').innerHTML = top.map((c,i)=>`<button class="chip ${c.cat===st.cat&&c.balde===st.balde?'on':''}" data-i="${i}">${c.cat}</button>`).join('');
+  $('quick').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ const c=top[el.dataset.i]; st.balde=c.balde; LS.set('balde',c.balde); st.cat=c.cat; setFv(c.fv); render(); $('monto').focus(); });
   const baldes = [...new Set(cfg.cats.map(c=>c.balde))];
   $('baldes').innerHTML = baldes.map(b=>`<button data-b="${b}" class="${b===st.balde?'on':''}">${b}</button>`).join('');
-  $('baldes').querySelectorAll('button').forEach(b=>b.onclick=()=>{ st.balde=b.dataset.b; st.cat=null; render(); });
-  const cats = cfg.cats.filter(c=>c.balde===st.balde);
+  $('baldes').querySelectorAll('button').forEach(b=>b.onclick=()=>{ st.balde=b.dataset.b; LS.set('balde',st.balde); st.cat=null; render(); });
+  const cats = cfg.cats.filter(c=>c.balde===st.balde).map((c,i)=>({c,i})).sort((a,b)=>((b.c.n||0)-(a.c.n||0))||(a.i-b.i)).map(x=>x.c);
   $('cats').innerHTML = cats.map((c,i)=>`<button class="chip ${c.cat===st.cat?'on':''}" data-i="${i}">${c.cat}</button>`).join('');
   $('cats').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{ const c=cats[el.dataset.i]; st.cat=c.cat; setFv(c.fv); render(); });
   const cur = cats.find(c=>c.cat===st.cat);
@@ -226,7 +243,7 @@ function validar(){
   $('divBox').classList.toggle('hide', !comun);
   const div = comun && $('dividir').checked;
   $('divHint').classList.toggle('hide', !(div && m>0));
-  if (div && m>0) $('divHint').textContent = `Se carga ${fmt(m/2)} en tu planilla y ${fmt(m/2)} en la de Agos`;
+  if (div && m>0) $('divHint').textContent = `Se carga ${fmt(m/2)} en tu planilla y ${fmt(m/2)} en la de ${(cfg&&cfg.otro)||'Agos'}`;
   const enC = $('enCuotas').checked, cant = parseInt($('cant').value,10);
   if (enC && m>0 && cant>0) {
     $('cuotaHint').textContent = $('esPorCuota').checked

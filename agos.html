@@ -1,10 +1,24 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Finanzas de Agos · Presupuesto 50/20/20/10</title>
+<meta name="theme-color" content="#f7f2f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#140d10" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mis finanzas">
+<link rel="apple-touch-icon" href="icons/tablero-192.png">
+<link rel="icon" href="icons/tablero.svg" type="image/svg+xml">
+<title>Finanzas de Agos</title>
+<!-- Nunito: respaldo de la letra "Redondeada" fuera de Apple (en iPhone se usa SF Pro Rounded) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap">
+<script>/* aplica el tema guardado antes de pintar (sin parpadeo) */
+try{ const t=localStorage.getItem("ag_tema"), f=localStorage.getItem("ag_fuente"); if(t) document.documentElement.dataset.tema=t; if(f) document.documentElement.dataset.fuente=f; }catch(e){}</script>
 <script>
 /* Chart.js v4.4.1 (MIT) — incrustado para funcionar sin conexión a CDNs */
 /*!
@@ -25,735 +39,445 @@
 </script>
 <style>
 :root{
-  color-scheme: light;
-  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#ffffff;
-  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
-  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
-  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b; --goodink:#006300;
-  --shadow: 0 1px 2px rgba(11,11,11,.04), 0 4px 16px rgba(11,11,11,.04);
+  /* neutros y paleta de gráficos (validada) */
+  --ink:#1d1d1f; --ink2:#515154; --muted:#86868b; --line:#e5e1e3;
+  --good:#1d8a57; --good-soft:#dff1e7; --warn:#a86a00; --warn-soft:#fbefd6; --bad:#c23b3b; --bad-soft:#f8e0de;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#4a3aa7; --s5:#eda100; --s6:#e87ba4; --s7:#008300; --s8:#e34948; --s0:#a39a90;
+  --grid:#eeeaec; --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.05);
+  --r:20px;
+  /* tema por defecto: Burgundy (iPhone 18 Pro) */
+  --bg:#f7f2f3; --surface:#fffdfd; --surface2:#f3ebed;
+  --acc:#7b2440; --acc-soft:#f1dde3; --acc-ink:#fff;
+  /* fuente por defecto: redondeada (SF Pro Rounded en iPhone) */
+  --display: ui-rounded,"SF Pro Rounded","Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-@media (prefers-color-scheme: dark){
-  :root:where(:not([data-theme="light"])){
-    color-scheme: dark;
-    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#201f1e;
-    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
-    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-    --goodink:#0ca30c;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+:root[data-tema="glacier"]{ --bg:#f2f6f9; --surface:#fdfeff; --surface2:#e8f0f5; --line:#dde6ec; --grid:#e9eff3; --acc:#3a7499; --acc-soft:#dbe9f2; --acc-ink:#fff; }
+:root[data-tema="negro"]  { --bg:#f5f5f7; --surface:#ffffff; --surface2:#ececf0; --line:#e3e3e8; --grid:#ececef; --acc:#1d1d1f; --acc-soft:#e3e3e8; --acc-ink:#fff; }
+:root[data-fuente="clasica"] { --display: system-ui,-apple-system,"SF Pro Display","Segoe UI",sans-serif; }
+:root[data-fuente="elegante"]{ --display: ui-serif,"New York","Iowan Old Style",Georgia,serif; }
+@media (prefers-color-scheme:dark){
+  :root{
+    --ink:#f5f5f7; --ink2:#c7c7cc; --muted:#98989d; --line:#3a2c31;
+    --good:#3fbf83; --good-soft:#1c3328; --warn:#e3a43a; --warn-soft:#3a2f1a; --bad:#ef6f6f; --bad-soft:#3d2222;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#9085e9; --s5:#c98500; --s6:#d55181; --s7:#008300; --s8:#e66767; --s0:#7d746b;
+    --grid:#2d2327; --shadow:0 1px 2px rgba(0,0,0,.3);
+    --bg:#140d10; --surface:#20161a; --surface2:#2c1f24;
+    --acc:#d77a95; --acc-soft:#3d1f29; --acc-ink:#1a0c11;
   }
+  :root[data-tema="glacier"]{ --bg:#0d1215; --surface:#172026; --surface2:#1f2b33; --line:#2a3741; --grid:#22303a; --acc:#8fc2e2; --acc-soft:#1c2c37; --acc-ink:#0c1419; }
+  :root[data-tema="negro"]  { --bg:#000000; --surface:#1c1c1e; --surface2:#2c2c2e; --line:#38383a; --grid:#2c2c2e; --acc:#f5f5f7; --acc-soft:#2c2c2e; --acc-ink:#1d1d1f; }
 }
-:root[data-theme="dark"]{
-  color-scheme: dark;
-  --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#201f1e;
-  --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
-  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-  --goodink:#0ca30c;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
-}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--plane); color:var(--ink);
-  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
-}
-a{color:var(--s1)}
-.wrap{max-width:1180px;margin:0 auto;padding:0 20px 64px}
-
-/* Topbar */
-.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--plane) 86%, transparent);
-  backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--border)}
-.topbar .row{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.brand{display:flex;flex-direction:column;line-height:1.1;margin-right:auto}
-.brand b{font-size:16px;letter-spacing:-.01em}
-.brand span{font-size:12px;color:var(--muted)}
-.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-select,button.btn{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);
-  border:1px solid var(--border);border-radius:9px;padding:7px 11px;cursor:pointer}
-select:hover,button.btn:hover{border-color:var(--axis)}
-button.btn.icon{padding:7px 9px}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
-.status-dot.ok{background:var(--good)} .status-dot.err{background:var(--crit)} .status-dot.load{background:var(--warn)}
-.upd{font-size:12px;color:var(--muted);white-space:nowrap}
-
-/* Sections */
-h1{font-size:0;margin:0}
-.sec{margin-top:30px}
-.sec-h{display:flex;align-items:baseline;gap:10px;margin:0 2px 12px}
-.sec-h h2{font-size:15px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;margin:0}
-.sec-h .kick{font-size:12px;color:var(--muted)}
-.grid{display:grid;gap:14px}
-.g2{grid-template-columns:repeat(2,1fr)}
-.g3{grid-template-columns:repeat(3,1fr)}
-.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:900px){.g3,.g4{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr}}
-@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
-.card h3{margin:0 0 2px;font-size:13.5px;font-weight:650}
-.card .sub{margin:0 0 12px;font-size:12px;color:var(--muted)}
-.card.span2{grid-column:span 2}
-@media(max-width:900px){.card.span2{grid-column:span 2}}
-@media(max-width:560px){.card.span2{grid-column:span 1}}
-
-/* KPI tiles */
-.kpi{display:flex;flex-direction:column;gap:2px}
-.kpi .lbl{font-size:12px;color:var(--ink2)}
-.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
-.kpi .sub{font-size:12px;color:var(--muted);margin:0}
-.kpi .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;width:fit-content;margin-top:4px}
-.chip.good{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--goodink)}
-.chip.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:#8a5a00}
-.chip.serious{background:color-mix(in srgb,var(--serious) 22%,transparent);color:#9a3d16}
-.chip.crit{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
-:root[data-theme="dark"] .chip.warn,@media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .chip.warn{color:var(--warn)}}
-:root[data-theme="dark"] .chip.serious{color:var(--serious)}
-
-/* Budget bullets */
-.bullet{margin:0 0 14px}
-.bullet:last-child{margin-bottom:0}
-.bullet .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
-.bullet .name{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px}
-.bullet .amt{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
-.bullet .track{position:relative;height:16px;background:color-mix(in srgb,var(--muted) 16%,transparent);border-radius:8px;overflow:hidden}
-.bullet .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;transition:width .5s cubic-bezier(.2,.7,.2,1)}
-.bullet .mark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
-.bullet .msg{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px}
-.dotb{width:8px;height:8px;border-radius:50%;flex:none}
-
-/* chart canvas holder */
-.cwrap{position:relative;width:100%}
-.cwrap.h260{height:260px}.cwrap.h300{height:300px}.cwrap.h340{height:340px}.cwrap.h220{height:220px}
-.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:var(--ink2)}
-.legend .it{display:flex;align-items:center;gap:6px}
-.legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
-
-/* progress objetivo */
-.obj .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
-.obj .track{height:12px;background:color-mix(in srgb,var(--muted) 16%,transparent);border-radius:7px;overflow:hidden}
-.obj .fill{height:100%;border-radius:7px}
-.obj+.obj{margin-top:16px}
-
-/* table */
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
-th:first-child,td:first-child{text-align:left;font-variant-numeric:normal}
-thead th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
-.tblwrap{max-height:340px;overflow:auto}
-
-/* setup + banners */
-.center{min-height:70vh;display:flex;align-items:center;justify-content:center}
-.setup{max-width:640px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;box-shadow:var(--shadow)}
-.setup h2{margin:0 0 6px;font-size:20px}
-.setup p{color:var(--ink2);margin:8px 0}
-.setup ol{color:var(--ink2);padding-left:20px;margin:12px 0}
-.setup ol li{margin:6px 0}
-.setup input[type=text]{width:100%;font:inherit;font-size:13px;padding:10px 12px;border:1px solid var(--border);
-  border-radius:10px;background:var(--surface-2);color:var(--ink);margin-top:6px}
-.setup .go{margin-top:14px;background:var(--s1);color:#fff;border:none;padding:11px 18px;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px}
-.banner{background:color-mix(in srgb,var(--warn) 20%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);
-  color:var(--ink);border-radius:10px;padding:9px 14px;font-size:12.5px;margin-top:14px;display:flex;gap:8px;align-items:center}
-.err-box{color:var(--crit);font-size:13px;margin-top:10px}
-.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:760px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(110px + env(safe-area-inset-bottom))}
 .hide{display:none!important}
-.mini{font-size:11.5px;color:var(--muted)}
+a{color:var(--acc)}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 2px 14px}
+.hello{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:-.01em}
+.hello small{display:block;font:500 13px/1.3 system-ui,-apple-system,sans-serif;color:var(--muted);letter-spacing:0;margin-top:2px}
+.tools{display:flex;gap:6px;align-items:center}
+.ibtn{border:1px solid var(--line);background:var(--surface);color:var(--ink2);width:38px;height:38px;border-radius:12px;font-size:16px;display:grid;place-items:center;cursor:pointer}
+select.ibtn{width:auto;padding:0 10px;font-size:13px;font-weight:600;appearance:none;-webkit-appearance:none}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h2{font-family:var(--display);font-size:19px;font-weight:700;margin:0 0 2px;letter-spacing:-.01em}
+.card .lead{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+.kick{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+
+/* hero */
+.hero{background:linear-gradient(150deg,var(--acc-soft) 0%,var(--surface) 75%);border-color:color-mix(in srgb,var(--acc) 22%,var(--line))}
+.hero .kick{color:var(--acc)}
+.big{color:var(--acc)}
+.hello{color:var(--acc)}
+.big{font-family:var(--display);font-size:48px;line-height:1.02;font-weight:700;letter-spacing:-.02em;margin:2px 0 6px}
+.big.neg{color:var(--bad)}
+.heroSub{color:var(--ink2);font-size:14.5px;margin:0}
+.heroSub b{color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;background:var(--surface2);color:var(--ink2)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+
+/* sueldo bar */
+.sbar{display:flex;height:22px;border-radius:11px;overflow:hidden;background:var(--surface2);margin:18px 0 10px;gap:2px}
+.sbar i{display:block;height:100%;min-width:2px}
+.sbar i.left{background:repeating-linear-gradient(135deg,var(--surface2) 0 6px,var(--line) 6px 8px)}
+.sleg{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px;color:var(--ink2)}
+.sleg span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.stripe{background:repeating-linear-gradient(135deg,var(--s7) 0 3px,transparent 3px 5px)!important;border:1px solid var(--s7)}
+
+/* saldo real */
+.real{margin-top:16px;border-radius:16px;background:var(--surface2);padding:14px}
+.real .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px;padding:3px 0}
+.real .row b{font-size:15px}
+.real .gap{border-top:1px dashed var(--line);margin-top:6px;padding-top:8px;color:var(--bad);font-weight:700}
+.real p{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+
+/* en qué se fue */
+.wf{display:flex;flex-direction:column;gap:2px}
+.wfhead{font-size:14px;color:var(--ink2);margin:0 0 8px}
+.wfhead b{color:var(--ink)}
+.wfr{display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center;border-radius:12px;padding:7px 6px;cursor:pointer}
+.wfr:hover{background:var(--surface2)}
+.wfl{font-size:14px;font-weight:600;line-height:1.25}
+.wft{display:flex;align-items:center;gap:8px;min-width:0}
+.wft .b{height:18px;border-radius:0 6px 6px 0;min-width:4px;flex:none;max-width:68%}
+.wft .v{font-size:13.5px;font-weight:700;white-space:nowrap}
+.wft .v em{font-style:normal;font-weight:500;color:var(--muted);margin-left:2px}
+.wfr.queda{margin-top:6px;border-top:1px dashed var(--line);border-radius:0;padding-top:12px}
+.wfr.queda .wfl{font-family:var(--display);font-size:15px}
+.wfr.queda .b{background:var(--good)}
+.wfr.queda.neg .b{background:var(--bad)}
+.wfd{font-size:12.5px;color:var(--ink2);padding:0 6px 8px 158px;display:none}
+.wfd.open{display:block}
+.wfd span{display:inline-block;margin:2px 12px 2px 0}
+
+/* fijo vs elegido */
+.split3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.mini{background:var(--surface2);border-radius:14px;padding:12px}
+.mini .t{font-size:12px;color:var(--muted);font-weight:600}
+.mini .n{font-family:var(--display);font-size:22px;font-weight:600;margin-top:2px}
+.mini .p{font-size:12px;color:var(--ink2)}
+.note{font-size:13.5px;color:var(--ink2);background:var(--surface2);border-radius:14px;padding:12px 14px;margin-top:12px}
+.note b{color:var(--ink)}
+
+/* comparativa */
+.cmp{display:flex;flex-direction:column;gap:10px}
+.cmpr{display:grid;grid-template-columns:118px 1fr 74px;gap:10px;align-items:center;font-size:13.5px}
+.cmpr .nm{font-weight:600;line-height:1.2}
+.cmpr .bars{position:relative;height:22px}
+.cmpr .now{position:absolute;left:0;top:3px;height:16px;border-radius:0 5px 5px 0}
+.cmpr .avg{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);border-radius:1px}
+.cmpr .dl{text-align:right;font-weight:700;font-size:12.5px}
+.cmpr .dl small{display:block;font-weight:500;color:var(--muted);font-size:11.5px}
+.dl.up{color:var(--bad)} .dl.dn{color:var(--good)} .dl.eq{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--ink2);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* charts */
+.cw{position:relative;height:250px}
+.cw.tall{height:300px}
+
+/* lista */
+.list{list-style:none;margin:0;padding:0}
+.list .day{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:12px 2px 4px}
+.list li.it{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--line)}
+.list .d{display:flex;align-items:center;gap:10px;min-width:0}
+.list .d div{min-width:0}
+.list .d b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .d small{color:var(--muted);font-size:12px}
+.list .m{font-weight:700;white-space:nowrap}
+.ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex:none}
+.more{display:block;width:100%;margin-top:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);border-radius:12px;padding:10px;font-weight:600;font-size:13.5px;cursor:pointer}
+
+/* patrimonio */
+.g3{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.g3{grid-template-columns:repeat(3,1fr)}}
+.fund .val{font-family:var(--display);font-size:26px;font-weight:600}
+.track{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:6px}
+.track i{display:block;height:100%;border-radius:4px}
+.frow{margin-top:10px;font-size:13px}
+.frow .top2{display:flex;justify-content:space-between;color:var(--ink2)}
+table.ten{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+table.ten th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
+table.ten td{padding:7px 4px;border-bottom:1px solid var(--line)}
+
+/* tema */
+.tema{display:none}
+.tema.open{display:block}
+.tema .lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.opts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.opt{border:2px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:14px;padding:9px 14px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer}
+.opt.on{border-color:var(--acc)}
+.opt .dotc{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.opt.f1{font-family:system-ui,-apple-system,sans-serif}
+.opt.f2{font-family:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif}
+.opt.f3{font-family:ui-serif,"New York",Georgia,serif}
+
+/* avisos y FAB */
+.banner{border-radius:16px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;background:var(--warn-soft);color:var(--warn)}
+.banner b{color:inherit}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));z-index:5;background:var(--acc);color:var(--acc-ink);text-decoration:none;font-family:var(--display);font-weight:700;font-size:16px;padding:15px 26px;border-radius:999px;box-shadow:0 8px 24px color-mix(in srgb, var(--acc) 35%, transparent);display:flex;gap:8px;align-items:center;white-space:nowrap}
+.foot{color:var(--muted);font-size:12px;text-align:center;margin-top:22px;line-height:1.6}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:5px;vertical-align:middle}
+.dot.ok{background:var(--good)} .dot.err{background:var(--bad)} .dot.load{background:var(--warn)}
+.center{text-align:center;padding:60px 10px;color:var(--ink2)}
+.center button{margin-top:14px;border:0;background:var(--acc);color:var(--acc-ink);border-radius:12px;padding:11px 18px;font-weight:700;font-size:14px}
+@media(max-width:400px){
+  .big{font-size:42px}
+  .wfr{grid-template-columns:104px 1fr;gap:8px}
+  .wft .b{max-width:40%}
+  .wft .v{font-size:13px}
+  .cmpr{grid-template-columns:96px 1fr 64px}
+  .wfd{padding-left:4px}
+  .split3 .mini .n{font-size:19px}
+}
 </style>
 </head>
 <body>
-<h1>Panel de finanzas personales</h1>
-
-<div class="topbar">
-  <div class="row">
-    <div class="brand"><b>Finanzas de Agos</b><span>Regla 50 / 20 / 20 / 10 · en vivo</span></div>
-    <div class="ctl">
-      <label class="mini" for="periodo" style="color:var(--muted)">Período</label>
-      <select id="periodo" title="Elegí el mes"></select>
-      <button class="btn icon" id="refresh" title="Actualizar ahora">↻</button>
-      <select id="theme" title="Tema">
-        <option value="auto">🖥️ Auto</option>
-        <option value="light">☀️ Claro</option>
-        <option value="dark">🌙 Oscuro</option>
-      </select>
-    </div>
-    <div class="upd"><span class="status-dot" id="dot"></span><span id="updtxt">—</span></div>
-  </div>
-</div>
-
 <div class="wrap">
 
-  <!-- SETUP -->
-  <div id="setup" class="center hide">
-    <div class="setup">
-      <h2>Conectá tu planilla 📊</h2>
-      <p id="setupmsg">Elegí cómo querés que el tablero lea tus datos:</p>
+  <header class="top">
+    <div class="hello" id="hello">Hola, Agos<small id="hoy">…</small></div>
+    <div class="tools">
+      <select class="ibtn" id="periodo" aria-label="Elegí el mes"></select>
+      <button class="ibtn" id="temaBtn" aria-label="Cambiar colores y letra">🎨</button>
+      <button class="ibtn" id="refresh" aria-label="Actualizar">↻</button>
+    </div>
+  </header>
 
-      <p style="margin-top:16px"><b>🟢 Opción A · En vivo (recomendada)</b><br>
-      En tu planilla, botón <b>Compartir</b> (arriba a la derecha) → en <b>Acceso general</b> cambiá a <b>Cualquiera con el enlace → Lector</b> → <b>Listo</b>. Después tocá:</p>
-      <button class="go" id="retry">↻ Reintentar en vivo</button>
-      <p class="mini">Esto permite que el navegador lea la planilla solo. Queda visible para cualquiera que tenga el link exacto (no aparece en búsquedas de Google).</p>
+  <section class="card tema" id="tema">
+    <p class="lbl">Color</p>
+    <div class="opts" id="optTema">
+      <button class="opt" data-v="burgundy"><span class="dotc" style="background:#7b2440"></span>Burgundy</button>
+      <button class="opt" data-v="glacier"><span class="dotc" style="background:#a9cbe0"></span>Glacier</button>
+      <button class="opt" data-v="negro"><span class="dotc" style="background:#1d1d1f"></span>Negro</button>
+    </div>
+    <p class="lbl">Letra</p>
+    <div class="opts" id="optFuente" style="margin-bottom:0">
+      <button class="opt f2" data-v="redondeada">Redondeada</button>
+      <button class="opt f1" data-v="clasica">Clásica</button>
+      <button class="opt f3" data-v="elegante">Elegante</button>
+    </div>
+  </section>
 
-      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+  <div id="loading" class="center">Cargando tus números…</div>
+  <div id="error" class="center hide"><div id="errMsg"></div><button id="retry">Reintentar</button></div>
 
-      <p><b>🔒 Opción B · Privada, sin publicar nada</b><br>
-      En tu planilla, con la hoja <b>Movimientos</b> abierta: <b>Archivo → Descargar → Valores separados por comas (.csv)</b>. Después cargá ese archivo acá (no queda en vivo: lo volvés a cargar cuando quieras actualizar):</p>
-      <input type="file" id="filein" accept=".csv,text/csv" style="margin-top:6px">
+  <main id="app" class="hide">
+    <div id="avisos"></div>
 
-      <div id="setuperr" class="err-box"></div>
+    <!-- 1 · cuánto me queda -->
+    <section class="card hero">
+      <p class="kick" id="heroKick">Te quedan</p>
+      <div class="big num" id="heroNum">$0</div>
+      <p class="heroSub" id="heroSub"></p>
+      <div class="pills" id="heroPills"></div>
+    </section>
 
-      <details style="margin-top:18px"><summary class="mini">Ver una demostración con datos de ejemplo</summary>
-        <p class="mini" style="margin-top:8px"><button class="btn" id="demoBtn" style="font-size:12px">Ver demo</button> — para ver cómo se ve el tablero sin conectar nada.</p>
+    <!-- 2 · en qué se fue -->
+    <section class="card">
+      <h2 id="wfTitle">¿En qué se fue tu sueldo?</h2>
+      <p class="lead">Empieza con lo que cobraste y va restando. Tocá un rubro para ver el detalle.</p>
+      <div class="wf" id="wf"></div>
+    </section>
+
+    <!-- 3 · más o menos que siempre -->
+    <section class="card" id="secCmp">
+      <h2>¿Gastaste más o menos que siempre?</h2>
+      <p class="lead" id="cmpLead"></p>
+      <div class="cmp" id="cmp"></div>
+      <div class="legend" id="cmpLeg"></div>
+    </section>
+
+    <!-- 4 · lo que viene -->
+    <section class="card" id="secProx">
+      <h2>Lo que viene</h2>
+      <p class="lead">Cuotas que ya están comprometidas para los próximos meses.</p>
+      <div class="cw"><canvas id="cProx" aria-label="Cuotas de los próximos meses"></canvas></div>
+      <div class="note" id="proxNote"></div>
+    </section>
+
+    <!-- 5 · últimos gastos -->
+    <section class="card">
+      <h2>Tus últimos gastos</h2>
+      <p class="lead" id="listLead"></p>
+      <ul class="list" id="list"></ul>
+      <button class="more" id="moreBtn">Ver todos los del mes</button>
+    </section>
+
+    <!-- 6 · ahorros en dólares -->
+    <section class="card hide" id="secPat">
+      <h2>Ahorros en dólares</h2>
+      <p class="lead">Lo que tienen guardado entre los dos.</p>
+      <div class="g3">
+        <div class="fund" id="fEmerg"></div>
+        <div class="fund" id="fVac"></div>
+        <div class="fund" id="fInv"></div>
+      </div>
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;color:var(--ink2);font-size:13.5px;font-weight:600">Ver inversiones en detalle</summary>
+        <div class="cw" style="margin-top:12px"><canvas id="cInv" aria-label="Evolución de la cartera en dólares"></canvas></div>
+        <div id="tenencias"></div>
       </details>
-    </div>
-  </div>
+    </section>
 
-  <!-- APP -->
-  <div id="app" class="hide">
-
-    <div id="demoBanner" class="banner hide">🧪 Estás viendo <b>datos de demostración</b>. Publicá tu hoja para ver tus números reales.</div>
-
-    <!-- KPIs -->
-    <div class="sec" style="margin-top:22px">
-      <div class="grid g4" id="kpis"></div>
-    </div>
-
-    <!-- VIEW 1: baldes + evolución -->
-    <div class="sec">
-      <div class="sec-h"><h2>Baldes &amp; evolución</h2><span class="kick">presupuesto vs gastado · mes a mes</span></div>
-      <div class="grid g2">
-        <div class="card">
-          <h3>Presupuesto vs gastado por balde</h3>
-          <p class="sub" id="baldesSub">Objetivo del mes según tu ingreso</p>
-          <div id="bullets"></div>
-        </div>
-        <div class="card">
-          <h3>Evolución mensual</h3>
-          <p class="sub">Gasto por balde (barras) e ingreso (línea) · <span id="evoYear"></span></p>
-          <div class="cwrap h300"><canvas id="cEvo"></canvas></div>
-          <div class="legend" id="evoLeg"></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card">
-          <h3>% del ingreso gastado</h3>
-          <p class="sub">Cuánto de tu ingreso usaste cada mes</p>
-          <div class="cwrap h220"><canvas id="cPct"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>Distribución del mes por balde</h3>
-          <p class="sub" id="donutSub"></p>
-          <div class="cwrap h220"><canvas id="cBaldeDonut"></canvas></div>
-          <div class="legend" id="baldeLeg"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- VIEW 2: en qué se va la plata -->
-    <div class="sec">
-      <div class="sec-h"><h2>En qué se va la plata</h2><span class="kick">categorías · fijo vs variable</span></div>
-      <div class="grid g2">
-        <div class="card">
-          <h3>Top categorías del mes</h3>
-          <p class="sub" id="topSub"></p>
-          <div class="cwrap h340"><canvas id="cTop"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>Este mes vs promedio 6 meses</h3>
-          <p class="sub">Dónde gastaste más o menos que tu costumbre</p>
-          <div class="cwrap h340"><canvas id="cVs"></canvas></div>
-          <div class="legend" id="vsLeg"></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card">
-          <h3>Fijo vs variable</h3>
-          <p class="sub">Cuánto de tu gasto es comprometido vs discrecional</p>
-          <div class="cwrap h220"><canvas id="cFV"></canvas></div>
-          <div class="legend" id="fvLeg"></div>
-        </div>
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <h3>Detalle por categoría</h3>
-            <button class="btn" id="tblToggle" style="font-size:12px">Ver tabla ▾</button>
-          </div>
-          <p class="sub">Tabla del mes seleccionado (accesible / exportable)</p>
-          <div class="tblwrap hide" id="tblwrap"><table id="catTable"></table></div>
-          <div id="tblHint" class="mini">Tocá "Ver tabla" para ver todos los montos del mes.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- VIEW 3: ahorro y objetivos -->
-    <div class="sec">
-      <div class="sec-h"><h2>Ahorro &amp; objetivos</h2><span class="kick">tasa de ahorro · metas</span></div>
-      <div class="grid g2">
-        <div class="card">
-          <h3>Tasa de ahorro mensual</h3>
-          <p class="sub">Ahorro sobre ingreso · objetivo <span id="objTasa">20%</span></p>
-          <div class="cwrap h260"><canvas id="cTasa"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>Ahorro acumulado del año</h3>
-          <p class="sub" id="acumSub">Cuánto llevás guardado en <span id="acumYear"></span></p>
-          <div class="cwrap h260"><canvas id="cAcum"></canvas></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card">
-          <h3>Objetivos del mes</h3>
-          <p class="sub">Avance de ahorro y vacaciones</p>
-          <div id="objetivos"></div>
-        </div>
-        <div class="card">
-          <h3>Composición del ahorro</h3>
-          <p class="sub" id="compSub">En qué guardás la plata</p>
-          <div class="cwrap h220"><canvas id="cComp"></canvas></div>
-          <div class="legend" id="compLeg"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- VIEW 4: cuotas y deuda -->
-    <div class="sec">
-      <div class="sec-h"><h2>Cuotas &amp; deuda</h2><span class="kick">planes en cuotas comprometidos</span></div>
-      <div class="grid g3" id="cuotasKpis"></div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card span2">
-          <h3>Cuotas comprometidas por mes</h3>
-          <p class="sub">Lo que ya está comprometido en planes de cuotas · ya sumado dentro de Personales · <span id="cuotasSync"></span></p>
-          <div class="cwrap h300"><canvas id="cCuotas"></canvas></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- PATRIMONIO: fondos + inversiones (Finanzas General) -->
-    <div class="sec hide" id="secPatrimonio">
-      <div class="sec-h"><h2>Patrimonio · dólares</h2><span class="kick">fondos e inversiones del hogar</span></div>
-      <div class="grid g3">
-        <div class="card">
-          <h3>Fondo de emergencia</h3>
-          <p class="sub">Objetivo: 6 meses de gastos fijos (tranquilidad)</p>
-          <div id="emergencia"></div>
-        </div>
-        <div class="card">
-          <h3>Fondo de vacaciones</h3>
-          <p class="sub">Ahorro acumulado en USD</p>
-          <div id="vacacionesUsd"></div>
-        </div>
-        <div class="card">
-          <h3>Inversiones</h3>
-          <p class="sub" id="invSub">Valor de la cartera (cuenta Balanz)</p>
-          <div id="invKpi"></div>
-        </div>
-      </div>
-      <div class="grid g2" style="margin-top:14px">
-        <div class="card">
-          <h3>Evolución de la cartera (USD)</h3>
-          <p class="sub">Valor de la cuenta al cierre de cada mes</p>
-          <div class="cwrap h260"><canvas id="cInv"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>Tenencias por activo</h3>
-          <p class="sub">Nominales · cuántos tiene cada uno</p>
-          <div id="tenencias"></div>
-        </div>
-      </div>
-      <p class="mini" style="margin-top:8px">Todo en vivo desde "Finanzas General", con el desglose por persona. Inversiones expresadas en nominales (no valuadas por precio). El split de SPY se contempla automáticamente.</p>
-    </div>
-
-    <div class="foot" id="foot"></div>
-  </div>
+    <div class="foot"><span class="dot" id="dot"></span><span id="upd">—</span><br>Los datos salen de tu planilla y se actualizan solos.</div>
+  </main>
 </div>
 
+<a class="fab" href="cargar.html">＋ Anotar gasto</a>
+
 <script>
-/* ============================================================
-   CONFIGURACIÓN — editá acá cuando cambien tu sueldo o tus planes
-   ============================================================ */
+/* ============ configuración ============ */
+const FILE_ID   = "1nXsl0NTCL4TQ8JCJ0mpa_kXnA4vwH8Z2TARJJAyyv6E"; // Presupuesto Agos - Nuevo
+const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs"; // Finanzas General (fondos + inversiones)
+const SHEETS = { mov:"Movimientos", ing:"INGRESOS", cuo:"CUOTAS" };
+const EMERG_OBJ = { Mati:3774, Agos:3400 };                       // objetivo fondo de emergencia (USD)
+const COBRO_DIA_HABIL = [3,5];                                      // cobra entre el 3er y el 5to día hábil
+const FERIADOS = ["01-01","02-16","02-17","03-24","04-02","04-03","05-01","05-25","06-15","06-20","07-09","08-17","10-12","11-23","12-08","12-25"];
 
-// 1) URL del CSV publicado de la hoja "Movimientos".
-//    (dejala vacía y el tablero te pide pegarla la primera vez)
-const CSV_URL = "";
+/* Rubros: agrupan las categorías de la planilla en algo fácil de leer.
+   El orden fija el color (no cambiar el orden sin revisar la paleta). */
+const RUBROS = [
+  { id:"casa",    nombre:"Casa",               emoji:"🏠", c:"--s1", cats:["alquiler","expensas","servicios","internet","seguro depto","hogar"] },
+  { id:"super",   nombre:"Súper",              emoji:"🛒", c:"--s2", cats:["supermercado"] },
+  { id:"tenis",   nombre:"Tenis",              emoji:"🎾", c:"--s3", cats:["tenis"] },
+  { id:"auto",    nombre:"Auto",               emoji:"🚗", c:"--s4", cats:["nafta","auto","patente","seguro auto"] },
+  { id:"salud",   nombre:"Salud y farmacia",   emoji:"🩺", c:"--s5", cats:["salud","farmacia"] },
+  { id:"social",  nombre:"Salidas y regalos",  emoji:"🥂", c:"--s6", cats:["salidas","regalos","delivery","cafe","kiosco","viajes"] },
+  { id:"ahorro",  nombre:"Ahorro",             emoji:"💵", c:"--s7", cats:[] , ahorro:true },
+  { id:"estudio", nombre:"Estudios",           emoji:"🎓", c:"--s8", cats:["estudios","educacion","catolica"] },
+  { id:"otros",   nombre:"Ropa y otros",       emoji:"🛍️", c:"--s0", cats:[] }
+];
 
-// 2) Ingreso neto por mes (ARS). Actualizá si cambia tu sueldo.
-const CONFIG = {
-  syncDate: "2026-08-14",
-  baldes:   { Esenciales:0.50, Personales:0.20, Ahorro:0.20, Vacaciones:0.10 },
-  objetivoAhorro: 0.20,        // objetivo de tasa de ahorro (balde Ahorro)
-  ingresos: {
-    "2026": { Enero:1846258, Febrero:1846258, Marzo:1846258, Abril:1846258,
-              Mayo:1846258, Junio:1846258, Julio:1846258, Agosto:2446258,
-              Septiembre:1846258, Octubre:1846258, Noviembre:1846258, Diciembre:1846258 }
-  },
-  ingresoDefault: 1846258,
-  // 3) Plan de cuotas comprometidas por mes (ARS). Total pendiente aparte.
-  cuotas: {
-    "2026-08":50000, "2026-09":160000, "2026-10":110000, "2026-11":110000, "2026-12":610000,
-    "2027-01":110000, "2027-02":110000, "2027-03":110000, "2027-04":110000, "2027-05":110000, "2027-06":110000
-  },
-  cuotasPendiente: 2270246
-};
-
-/* ============================================================
-   (de acá para abajo no hace falta tocar nada)
-   ============================================================ */
+/* ============ utilidades ============ */
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const MES_ABBR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-const BALDE_ORDER = ["Esenciales","Personales","Ahorro","Vacaciones"];
-const CUOTAS_CAT = "Cuotas del mes";  // categoría virtual: las cuotas del mes se cuentan como gasto Personal (ver foldCuotasIntoPersonales)
-const fmt = new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0});
-const fmt1 = new Intl.NumberFormat("es-AR",{maximumFractionDigits:1});
-const fmtU = v => 'US$'+Math.round(v||0).toLocaleString('es-AR');
-const pct = v => (v*100).toFixed(v>=1?0:1).replace(".",",")+"%";
+const DIAS = ["dom","lun","mar","mié","jue","vie","sáb"];
 const $ = s => document.querySelector(s);
-
-let STATE = { rows:[], model:null, months:[], sel:null, charts:{}, url:CSV_URL, demo:false, manual:false, ingresosLive:{}, patrimonio:null, cuotasLive:null, baldesLive:null };
-// porcentajes de baldes EN VIVO desde la hoja CONFIG (fallback: CONFIG.baldes horneado)
-function BALDES(){ return STATE.baldesLive || CONFIG.baldes; }
-
-// La planilla se lee vía gviz + JSONP (carga por <script>, sin CORS).
-// Requiere que la planilla esté compartida como "Cualquiera con el enlace → Lector".
-const FILE_ID = "1nXsl0NTCL4TQ8JCJ0mpa_kXnA4vwH8Z2TARJJAyyv6E";
-const SHEET_NAME = "Movimientos";
-const SHEET_CUOTAS = "CUOTAS";   // hoja con el plan de cuotas (se lee EN VIVO; ver buildCuotas)
-const SHEET_CONFIG = "CONFIG";   // hoja de configuración: porcentajes de baldes (se lee EN VIVO; ver buildConfigBaldes)
-// Segunda planilla "Finanzas General" (fondos e inversiones del hogar, igual para los dos)
-const FIN_GEN_ID = "1DZNDcfxYpqcRn3T-ags85iC-fMJuUx6y-k4NJTg1trs";
-const EMERG_OBJ = { Mati:3774, Agos:3400 }; // objetivo fondo de emergencia en USD (tabla Gastos Fijos)
-
-/* ---------- theme ---------- */
-function palette(){
-  const cs = getComputedStyle(document.body);
-  const g = n => cs.getPropertyValue(n).trim();
-  return {
-    s:[g('--s1'),g('--s2'),g('--s3'),g('--s4'),g('--s5'),g('--s6'),g('--s7'),g('--s8')],
-    ink:g('--ink'), ink2:g('--ink2'), muted:g('--muted'), grid:g('--grid'), axis:g('--axis'),
-    surface:g('--surface'), good:g('--good'), warn:g('--warn'), serious:g('--serious'), crit:g('--crit')
-  };
-}
-function applyTheme(v){
-  if(v==='auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme',v);
-  try{ THEME_MEM = v; }catch(e){}
-  if(STATE.model) render();
-}
-let THEME_MEM='auto';
-
-/* ---------- CSV parse ---------- */
-function parseCSV(text){
-  const rows=[]; let i=0, field='', row=[], q=false;
-  while(i<text.length){
-    const c=text[i];
-    if(q){
-      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; }
-      else field+=c;
-    }else{
-      if(c==='"') q=true;
-      else if(c===','){ row.push(field); field=''; }
-      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
-      else if(c==='\r'){}
-      else field+=c;
-    }
-    i++;
-  }
-  if(field.length||row.length){ row.push(field); rows.push(row); }
-  return rows;
-}
+const money = v => (v<0?"−":"") + "$" + Math.round(Math.abs(v||0)).toLocaleString("es-AR");
+const kmoney = v => { const a=Math.abs(v||0); return (v<0?"−":"")+"$"+(a>=1e6?(a/1e6).toLocaleString("es-AR",{maximumFractionDigits:2})+" M":a>=1e3?Math.round(a/1e3).toLocaleString("es-AR")+" mil":Math.round(a)); };
+const fmtU = v => "US$" + Math.round(v||0).toLocaleString("es-AR");
+const pctTxt = v => Math.round((v||0)*100) + "%";
+const keyOf = (y,mi) => `${y}-${String(mi+1).padStart(2,"0")}`;
+const sinTildes = s => String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ddmm = d => String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+const esc = s => String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function num(s){
-  if(s==null) return 0;
-  if(typeof s==='number') return isFinite(s)?s:0;   // gviz ya lo da como número: usarlo tal cual
-  s=String(s).replace(/[^0-9.,-]/g,'');
-  if(!s) return 0;
-  const hasC=s.includes(','), hasD=s.includes('.');
-  if(hasC&&hasD) s=s.replace(/\./g,'').replace(',','.');
-  else if(hasC) s=s.replace(',','.');
-  else if(hasD) s=s.replace(/\./g,''); // punto = miles
+  if(s==null) return 0; if(typeof s==="number") return isFinite(s)?s:0;
+  s=String(s).replace(/[^0-9.,-]/g,""); if(!s) return 0;
+  if(s.includes(",")&&s.includes(".")) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.includes(",")) s=s.replace(",",".");
+  else if(s.includes(".")) s=s.replace(/\./g,"");
   const v=parseFloat(s); return isNaN(v)?0:v;
 }
-function norm(s){ return (s||'').toString().trim(); }
+const norm = s => (s==null?"":String(s)).trim();
 
-/* map header names -> index (tolerant) */
-function headerMap(h){
-  const idx={};
-  h.forEach((c,i)=>{ const k=norm(c).toUpperCase(); if(!(k in idx)) idx[k]=i; });
-  const pick=(...names)=>{ for(const n of names){ if(n in idx) return idx[n]; } return -1; };
-  return {
-    fecha: pick('FECHA'),
-    anio:  pick('AÑO','ANO','AÑO '),
-    mes:   pick('MES'),
-    balde: pick('BALDE'),
-    cat:   pick('CATEGORIA','CATEGORÍA'),
-    desc:  pick('DESCRIPCION','DESCRIPCIÓN'),
-    monto: pick('MONTO','IMPORTE'),
-    medio: pick('MEDIO DE PAGO','MEDIO'),
-    fv:    pick('FIJO/VAR','FIJO/VARIABLE','FIJO / VAR')
-  };
+function rubroDe(r){
+  if(r.balde==="Ahorro"||r.balde==="Vacaciones") return "ahorro";
+  const c=sinTildes(r.cat);
+  for(const R of RUBROS){ if(R.cats.some(k=>c.includes(k))) return R.id; }
+  return "otros";
 }
+const RUB = Object.fromEntries(RUBROS.map(r=>[r.id,r]));
 
-function buildRows(csvText){ return buildRowsFromMatrix(parseCSV(csvText)); }
-// convierte la respuesta JSON de gviz en una matriz [fila][celda]
+/* días hábiles y cobro */
+function esHabil(d){ const w=d.getDay(); if(w===0||w===6) return false;
+  const k=String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); return !FERIADOS.includes(k); }
+function nHabil(y,m,n){ const d=new Date(y,m,1); let c=0; while(true){ if(esHabil(d)&&++c===n) return new Date(d); d.setDate(d.getDate()+1); } }
+const diasEntre = (a,b) => Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate()) - new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5);
+
+/* ============ lectura (gviz + JSONP) ============ */
+function loadGviz(sheet, fileId){
+  fileId=fileId||FILE_ID;
+  return new Promise((resolve,reject)=>{
+    const cb="__gv_"+Date.now()+"_"+(loadGviz.n=(loadGviz.n||0)+1);
+    const s=document.createElement("script"); let done=false;
+    const clean=()=>{ try{delete window[cb]}catch(e){window[cb]=undefined} s.remove(); };
+    const to=setTimeout(()=>{ if(!done){done=true;clean();reject(new Error("timeout"));} },20000);
+    window[cb]=r=>{ if(done)return; done=true; clearTimeout(to); clean(); resolve(r); };
+    s.onerror=()=>{ if(done)return; done=true; clearTimeout(to); clean(); reject(new Error("script-error")); };
+    s.src=`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(sheet)}&nc=${Date.now()}`;
+    document.head.appendChild(s);
+  });
+}
 function gvizMatrix(resp){
   const t=resp&&resp.table; if(!t) return [];
-  const out=[ (t.cols||[]).map(c=>c&&c.label!=null?String(c.label):'') ];
-  for(const r of (t.rows||[])){
-    out.push((r.c||[]).map(cell=>{
-      if(!cell) return '';
-      if(typeof cell.v==='number') return cell.v;   // preservar número (no romper decimales con el punto)
-      if(cell.v!=null) return String(cell.v);
-      if(cell.f!=null) return String(cell.f);
-      return '';
-    }));
-  }
+  const out=[(t.cols||[]).map(c=>c&&c.label!=null?String(c.label):"")];
+  for(const r of (t.rows||[])) out.push((r.c||[]).map(cell=>{ if(!cell) return ""; if(typeof cell.v==="number") return cell.v; if(cell.v!=null) return String(cell.v); if(cell.f!=null) return String(cell.f); return ""; }));
   return out;
 }
-function buildRowsFromMatrix(raw0){
-  const raw=(raw0||[]).filter(r=>r.some(c=>norm(c)!==''));
-  if(!raw.length) return [];
-  // buscar fila de encabezado: primera celda == FECHA (si no, usar la primera fila)
-  let hi=raw.findIndex(r=>norm(r[0]).toUpperCase()==='FECHA');
-  if(hi<0) hi=0;
-  const map=headerMap(raw[hi]);
-  const out=[];
-  for(let r=hi+1;r<raw.length;r++){
-    const row=raw[r];
-    const monto=num(row[map.monto]);
-    const balde=norm(row[map.balde]);
-    const mes=norm(row[map.mes]);
-    let anio=norm(row[map.anio]);
-    // derivar año/mes de FECHA si faltan
-    if((!mes||!anio) && map.fecha>=0){
-      const f=norm(row[map.fecha]).match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-      if(f){ if(!mes){} if(!anio) anio=f[3].length===2?('20'+f[3]):f[3];
-             if(!mes){ const mi=parseInt(f[2],10)-1; if(mi>=0&&mi<12) row._mi=mi; } }
-    }
-    let mi = MESES.findIndex(m=>m.toLowerCase()===mes.toLowerCase());
-    if(mi<0 && row._mi!=null) mi=row._mi;
-    if(mi<0 || !anio || !balde || !monto) continue;
-    if(!BALDE_ORDER.includes(balde)) continue;
-    out.push({
-      anio:String(anio), mi, mes:MESES[mi], balde,
-      cat: norm(row[map.cat])||'(sin categoría)',
-      desc: norm(row[map.desc]),
-      monto,
-      medio: norm(row[map.medio]),
-      fv: (norm(row[map.fv])||'').toLowerCase().startsWith('f')?'Fijo':(norm(row[map.fv])?'Variable':'—')
-    });
-  }
-  return out;
-}
-
-/* ---------- model ---------- */
-function buildModel(rows){
-  const M={}; const set=new Set();
-  for(const r of rows){
-    const key=`${r.anio}-${String(r.mi+1).padStart(2,'0')}`;
-    set.add(key);
-    if(!M[key]) M[key]={anio:r.anio,mi:r.mi,mes:r.mes,baldes:{},cats:{},catBalde:{},fv:{Fijo:0,Variable:0,'—':0},medio:{},total:0,n:0};
-    const m=M[key];
-    m.baldes[r.balde]=(m.baldes[r.balde]||0)+r.monto;
-    m.cats[r.cat]=(m.cats[r.cat]||0)+r.monto;
-    m.catBalde[r.cat]=r.balde;
-    m.fv[r.fv]=(m.fv[r.fv]||0)+r.monto;
-    if(r.medio) m.medio[r.medio]=(m.medio[r.medio]||0)+r.monto;
-    m.total+=r.monto; m.n++;
-  }
-  const months=[...set].sort();
-  return {byKey:M, months};
-}
-// mismo criterio que usa renderCuotas: cuotas EN VIVO si la hoja Cuotas se leyó, si no el plan de CONFIG.
-function activeCuotas(){
-  const live = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? STATE.cuotasLive.cuotas : null;
-  return live || CONFIG.cuotas || {};
-}
-// Suma la cuota comprometida de cada mes DENTRO del balde Personales (la cuota es un gasto
-// personal, solo diferido). Así la barra de Personales, los KPIs, la evolución y el donut
-// muestran lo realmente comprometido y "lo que queda en la mano". Igual criterio que la hoja
-// Panel de la planilla (Panel Personales = Movimientos-Personales + cuotas del mes). Las cuotas
-// viven SOLO en la hoja Cuotas (no se cargan también en Movimientos), por eso no hay doble
-// conteo. Guarda m.cuotasMes para el desglose.
-function foldCuotasIntoPersonales(model){
-  if(STATE.demo) return;                       // en modo demo no mezclamos cuotas
-  const cuo = activeCuotas();
-  if(!cuo || !Object.keys(cuo).length) return;
-  const now=new Date();
-  const curKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  for(const key in cuo){
-    const amt=Math.round(cuo[key]||0); if(amt<=0) continue;
-    // solo meses que ya tienen movimientos + el mes en curso (no llenamos el selector de meses futuros)
-    if(!model.byKey[key] && key!==curKey) continue;
-    if(!model.byKey[key]){
-      const y=key.slice(0,4), mi=parseInt(key.slice(5),10)-1;
-      model.byKey[key]={anio:y,mi,mes:MESES[mi],baldes:{},cats:{},catBalde:{},fv:{Fijo:0,Variable:0,'—':0},medio:{},total:0,n:0};
-      if(!model.months.includes(key)) model.months.push(key);
-    }
-    const m=model.byKey[key];
-    m.baldes.Personales=(m.baldes.Personales||0)+amt;
-    m.cats[CUOTAS_CAT]=(m.cats[CUOTAS_CAT]||0)+amt;
-    m.catBalde[CUOTAS_CAT]='Personales';
-    m.fv.Fijo=(m.fv.Fijo||0)+amt;              // las cuotas son gasto fijo comprometido
-    m.total+=amt;
-    m.cuotasMes=(m.cuotasMes||0)+amt;          // desglose para el bullet de Personales
-  }
-  model.months.sort();
-}
-function ingresoEsLive(anio,mi){
-  const k=`${anio}-${String(mi+1).padStart(2,'0')}`;
-  return STATE.ingresosLive && STATE.ingresosLive[k]!=null;
-}
-function ingresoDe(anio,mi){
-  const k=`${anio}-${String(mi+1).padStart(2,'0')}`;
-  if(STATE.ingresosLive && STATE.ingresosLive[k]!=null) return STATE.ingresosLive[k]; // en vivo (hoja Ingresos)
-  const y=CONFIG.ingresos[anio];
-  if(y && y[MESES[mi]]!=null) return y[MESES[mi]];
-  return CONFIG.ingresoDefault;
-}
-// "agosto 2026" o el formato de fecha de gviz "Date(2026,7,1)" -> {mi, anio}
-function parseMesAnio(s){
-  s=norm(s);
-  // formato gviz para celdas de fecha: Date(año, mes0, día)  (mes base 0)
-  const d=s.match(/Date\((\d{4}),\s*(\d{1,2})/i);
-  if(d){ const m0=parseInt(d[2],10); if(m0>=0&&m0<12) return {mi:m0,anio:d[1]}; }
-  const low=s.toLowerCase();
-  const y=low.match(/(20\d{2})/); if(!y) return null;
-  for(let i=0;i<MESES.length;i++){ if(low.includes(MESES[i].toLowerCase())) return {mi:i,anio:y[1]}; }
-  // "8/2026" o "2026-08"
-  const mm=low.match(/\b(0?[1-9]|1[0-2])[\/\-](20\d{2})\b/); if(mm) return {mi:parseInt(mm[1],10)-1,anio:mm[2]};
-  const ym=low.match(/\b(20\d{2})[\/\-](0?[1-9]|1[0-2])\b/); if(ym) return {mi:parseInt(ym[2],10)-1,anio:ym[1]};
+function parseFecha(v){
+  const s=norm(v); let m=s.match(/Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})/);
+  if(m) return new Date(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m) return new Date(m[3].length===2?2000+ +m[3]:+m[3], +m[2]-1, +m[1]);
   return null;
 }
-// arma {"2026-08": totalIngreso} desde la hoja INGRESOS (leída por gviz)
+/* Movimientos: una fila por gasto. El encabezado puede venir pegado al título (gviz junta filas). */
+function buildRows(matrix){
+  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==""));
+  let hi=raw.findIndex(r=>r.some(c=>/(^|\s)FECHA$/i.test(norm(c))) && r.some(c=>/^MONTO$/i.test(norm(c))));
+  if(hi<0) hi=0;
+  const H=raw[hi].map(c=>norm(c).toUpperCase());
+  const ix=(...n)=>{ for(const x of n){ const i=H.findIndex(h=>h===x||h.endsWith(" "+x)); if(i>=0) return i; } return -1; };
+  const I={fecha:ix("FECHA"),anio:ix("AÑO","ANO"),mes:ix("MES"),balde:ix("BALDE"),cat:ix("CATEGORIA","CATEGORÍA"),desc:ix("DESCRIPCION","DESCRIPCIÓN"),monto:ix("MONTO"),medio:ix("MEDIO DE PAGO"),fv:ix("FIJO/VAR"),quien:ix("QUIEN PAGO","QUIÉN PAGÓ")};
+  const out=[];
+  for(let r=hi+1;r<raw.length;r++){
+    const row=raw[r]; const monto=num(row[I.monto]); const balde=norm(row[I.balde]);
+    if(!monto||!balde) continue;
+    const f=parseFecha(row[I.fecha]);
+    let y=parseInt(norm(row[I.anio]),10), mi=MESES.findIndex(m=>m.toLowerCase()===norm(row[I.mes]).toLowerCase());
+    if(f){ if(isNaN(y)) y=f.getFullYear(); if(mi<0) mi=f.getMonth(); }
+    if(isNaN(y)||mi<0) continue;
+    const it={ fecha:f, y, mi, key:keyOf(y,mi), balde, cat:norm(row[I.cat])||"Sin categoría", desc:norm(row[I.desc]), monto, medio:norm(row[I.medio]),
+               fv:/^f/i.test(norm(row[I.fv]))?"Fijo":"Variable", quien:norm(row[I.quien]) };
+    it.rubro=rubroDe(it); out.push(it);
+  }
+  return out;
+}
 function buildIngresos(matrix){
-  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
-  if(!raw.length) return {};
-  let hi=raw.findIndex(r=>r.some(c=>{const u=norm(c).toUpperCase();return u.includes('TOTAL')&&u.includes('MES');}));
-  if(hi<0) hi=raw.findIndex(r=>r.some(c=>norm(c).toUpperCase().includes('SUELDO')));
-  if(hi<0) hi=0;
-  const hdr=raw[hi].map(c=>norm(c).toUpperCase());
-  let iTot=hdr.findIndex(c=>c.includes('TOTAL')&&c.includes('MES'));
-  if(iTot<0) iTot=hdr.findIndex(c=>c.includes('TOTAL'));
-  const out={};
+  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!=="")); const out={};
+  let hi=raw.findIndex(r=>r.some(c=>/TOTAL DEL MES/i.test(norm(c)))); if(hi<0) hi=0;
+  const H=raw[hi].map(c=>norm(c).toUpperCase()); const iT=H.findIndex(h=>h.includes("TOTAL DEL MES"));
   for(let r=hi+1;r<raw.length;r++){
-    const row=raw[r]; const pm=parseMesAnio(row[0]); if(!pm) continue;
-    let total = iTot>=0 ? num(row[iTot]) : 0;
-    if(!total){ total = num(row[1])+num(row[2])+num(row[3]); } // sueldo+aguinaldo+otros
-    if(total>0) out[`${pm.anio}-${String(pm.mi+1).padStart(2,'0')}`]=total;
+    // el mes puede venir como texto ("noviembre 2026") o como celda de fecha (gviz: "Date(2026,10,1)")
+    const s=sinTildes(raw[r][0]); const dm=s.match(/date\((\d{4}),\s*(\d{1,2})/);
+    const y=dm?dm[1]:(s.match(/20\d\d/)||[])[0]; if(!y) continue;
+    const mi=dm?+dm[2]:MESES.findIndex(m=>s.includes(sinTildes(m))); if(mi<0||mi>11) continue;
+    let t=iT>=0?num(raw[r][iT]):0; if(!t) t=num(raw[r][1])+num(raw[r][2])+num(raw[r][3]);
+    if(t>0) out[keyOf(+y,mi)]=t;
   }
   return out;
 }
-
-// hoja Cuotas: lee el plan de cuotas EN VIVO desde la respuesta gviz CRUDA (resp.table).
-// OJO: los meses del encabezado son celdas de FECHA; gviz manda el número de serie en
-// .v y el texto ("sept-26") solo en .f. Por eso leemos .f para el texto de cada celda
-// (si usáramos la matriz normalizada, el mes se perdería y quedaría el número de serie).
-// Mapea mes->índice de columna desde el encabezado y lee esos índices en la fila
-// "TOTAL CUOTAS" (fallback: fila "Personales" del bloque de totales, o suma de artículos).
+/* Cuotas: encabezado de meses son celdas de FECHA (texto en .f).
+   Devuelve cada plan con su balde/categoría (así cada cuota se suma al rubro que corresponde)
+   y la fila TOTAL CUOTAS como respaldo. */
 function buildCuotas(resp){
-  const t = resp && resp.table; if(!t || !Array.isArray(t.rows)) return null;
-  const rows = t.rows.map(r => (r && r.c) ? r.c : []);
-  const cellText = c => c ? (c.f!=null ? String(c.f) : (c.v!=null ? String(c.v) : '')) : '';
-  const cellNum  = c => { if(!c) return 0; if(typeof c.v==='number') return c.v; return num(c.f!=null?c.f:c.v); };
+  const t=resp&&resp.table; if(!t||!t.rows) return {};
+  const rows=t.rows.map(r=>r&&r.c?r.c:[]);
+  const txt=c=>c?(c.f!=null?String(c.f):(c.v!=null?String(c.v):"")):"";
+  const val=c=>{ if(!c) return 0; if(typeof c.v==="number") return c.v; return num(c.f!=null?c.f:c.v); };
   const MON={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,sept:8,set:8,oct:9,nov:10,dic:11};
-  const tok=/^([a-zñ]{3,4})[\-\/\.\s]?(\d{2,4})$/i;
-  const monthKey=(s)=>{
-    const m=String(s||'').toLowerCase().replace(/\./g,'').trim().match(tok);
-    if(!m || MON[m[1]]==null) return null;
-    let y=m[2]; if(y.length===2) y='20'+y;
-    return `${y}-${String(MON[m[1]]+1).padStart(2,'0')}`;
-  };
-  // fila de encabezado = la que tenga MÁS celdas que parezcan mes (por su texto .f)
-  let colMap=null, best=0;
-  for(const r of rows){
-    const m={}; let cnt=0;
-    r.forEach((c,i)=>{ const k=monthKey(cellText(c)); if(k){ m[i]=k; cnt++; } });
-    if(cnt>best){ best=cnt; colMap=m; }
-  }
-  if(!colMap || best<3) return null;
-  // fila de totales por mes: preferí "TOTAL CUOTAS"; si no está, "Personales" (balde); si no, sumá filas de artículos
-  let totalRow=rows.find(r=>{const s=cellText(r[0]).toUpperCase();return s.includes('TOTAL')&&s.includes('CUOTA');});
-  const map={};
-  if(totalRow){
-    for(const i in colMap){ map[colMap[i]]=cellNum(totalRow[i]); }
-  }else{
-    const pers=rows.find(r=>cellText(r[0]).toUpperCase()==='PERSONALES');
-    if(pers){ for(const i in colMap){ map[colMap[i]]=cellNum(pers[i]); } }
-    else{
-      const skip=new Set(['','ARTICULO','ARTÍCULO','BALDE','CATEGORIA','CATEGORÍA','NOTAS','ESENCIALES','PERSONALES','AHORRO','VACACIONES']);
-      for(const r of rows){
-        const f=cellText(r[0]).toUpperCase();
-        if(skip.has(f) || f.includes('TOTAL')) continue;
-        for(const i in colMap){ map[colMap[i]]=(map[colMap[i]]||0)+cellNum(r[i]); }
-      }
+  const mk=s=>{ const m=String(s||"").toLowerCase().replace(/\./g,"").trim().match(/^([a-zñ]{3,4})[\-\/\s]?(\d{2,4})$/); if(!m||MON[m[1]]==null) return null; let y=m[2]; if(y.length===2) y="20"+y; return keyOf(+y,MON[m[1]]); };
+  let col=null,best=0;
+  for(const r of rows){ const m={}; let n=0; r.forEach((c,i)=>{ const k=mk(txt(c)); if(k){m[i]=k;n++;} }); if(n>best){best=n;col=m;} }
+  if(!col||best<3) return {};
+  const tot=rows.find(r=>{ const s=txt(r[0]).toUpperCase(); return s.includes("TOTAL")&&s.includes("CUOTA"); });
+  const total={};
+  if(tot){ for(const i in col){ const v=Math.round(val(tot[i])); if(v>0) total[col[i]]=v; } }
+  const hi=rows.findIndex(r=>txt(r[0]).toUpperCase()==="ARTICULO");
+  const items=[];
+  if(hi>=0){
+    for(const r of rows.slice(hi+1)){
+      const art=txt(r[0]).trim(), balde=txt(r[1]).trim(), cat=txt(r[2]).trim();
+      if(!art||!balde||/TOTAL/i.test(art)) continue;
+      const by={}; for(const i in col){ const v=Math.round(val(r[i])); if(v>0) by[col[i]]=v; }
+      if(Object.keys(by).length) items.push({art,balde,cat,by});
     }
   }
-  // limpiar: solo meses con cuota > 0, redondeado
-  const cuotas={};
-  for(const k in map){ const v=Math.round(map[k]); if(v>0) cuotas[k]=v; }
-  if(!Object.keys(cuotas).length) return null;
-  // saldo pendiente = suma de las cuotas de este mes en adelante
-  const now=new Date(); const nowKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  let pendiente=0; for(const k in cuotas){ if(k>=nowKey) pendiente+=cuotas[k]; }
-  return { cuotas, pendiente };
+  return { total, items };
 }
-
-// hoja CONFIG: lee los porcentajes de los 4 baldes EN VIVO (bloque "PORCENTAJES DEL PRESUPUESTO").
-// Lee la respuesta gviz CRUDA (resp.table) y usa el valor numérico .v de cada celda: una celda con
-// formato "%" trae la fracción en .v (0,5 para "50,0%"). Así evitamos el ambiguo coma/punto de num().
-// Cada balde figura como etiqueta seguida de su % en la celda siguiente. Devuelve fracciones que
-// suman 1 (normaliza redondeos). Si falta alguno o no suma nada, devuelve null y se usa el horneado.
-function buildConfigBaldes(resp){
-  const t = resp && resp.table; if(!t || !Array.isArray(t.rows)) return null;
-  const rows = t.rows.map(r => (r && r.c) ? r.c : []);
-  const cellText = c => c ? (c.f!=null ? String(c.f) : (c.v!=null ? String(c.v) : '')) : '';
-  const cellVal  = c => { if(!c) return null; if(typeof c.v==='number') return c.v; const n=num(c.f!=null?c.f:c.v); return isFinite(n)?n:null; };
-  const want=['Esenciales','Personales','Ahorro','Vacaciones'];
-  const out={};
-  for(const r of rows){
-    for(let ci=0; ci<r.length; ci++){
-      const lbl=cellText(r[ci]).trim().toLowerCase();
-      const hit=want.find(w=>w.toLowerCase()===lbl);
-      if(!hit || out[hit]!=null) continue;
-      // % = primer valor numérico de la fila después de la etiqueta (las filas de categorías traen texto, no número)
-      for(let cj=ci+1; cj<r.length; cj++){
-        let v=cellVal(r[cj]);
-        if(v==null || v<=0) continue;
-        if(v>1) v=v/100;              // vino como 50 en vez de 0,5
-        if(v>0 && v<=1){ out[hit]=v; break; }
-      }
-    }
-  }
-  if(want.some(w=>out[w]==null)) return null;
-  const sum=want.reduce((a,w)=>a+out[w],0);
-  if(sum<=0) return null;
-  if(Math.abs(sum-1)>0.005){ for(const w of want) out[w]=out[w]/sum; } // normaliza si no suma 100% exacto
-  return out;
-}
-
-// hoja Fondos: suma por fondo (Tranquilidad / Vacaciones) el aporte neto de cada uno (USD)
+/* Fondos (Finanzas General): suma por fondo, por persona */
 function buildFondos(matrix){
-  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
-  if(!raw.length) return null;
-  let hi=raw.findIndex(r=>norm(r[0]).toUpperCase()==='FECHA');
-  if(hi<0) hi=0;
-  const hdr=raw[hi].map(c=>norm(c).toUpperCase());
-  const iFondo=hdr.findIndex(c=>c.includes('FONDO'));
-  const iAgos=hdr.findIndex(c=>c==='AGOS');
-  const iMati=hdr.findIndex(c=>c==='MATI');
-  if(iFondo<0||iAgos<0||iMati<0) return null;
-  const out={ Tranquilidad:{agos:0,mati:0}, Vacaciones:{agos:0,mati:0} };
-  for(let r=hi+1;r<raw.length;r++){
-    const row=raw[r]; const f=norm(row[iFondo]).toLowerCase();
-    let key=null;
-    if(f.includes('tranquil')) key='Tranquilidad';
-    else if(f.includes('vacacion')) key='Vacaciones';
-    if(!key) continue;
-    out[key].agos += num(row[iAgos]);
-    out[key].mati += num(row[iMati]);
-  }
+  const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!=="")); if(!raw.length) return null;
+  let hi=raw.findIndex(r=>norm(r[0]).toUpperCase()==="FECHA"); if(hi<0) hi=0;
+  const H=raw[hi].map(c=>norm(c).toUpperCase());
+  const iF=H.findIndex(c=>c.includes("FONDO")), iA=H.indexOf("AGOS"), iM=H.indexOf("MATI");
+  if(iF<0||iA<0||iM<0) return null;
+  const out={Tranquilidad:{agos:0,mati:0},Vacaciones:{agos:0,mati:0}};
+  for(let r=hi+1;r<raw.length;r++){ const f=sinTildes(raw[r][iF]); const k=f.includes("tranquil")?"Tranquilidad":f.includes("vacacion")?"Vacaciones":null; if(!k) continue; out[k].agos+=num(raw[r][iA]); out[k].mati+=num(raw[r][iM]); }
   return out;
 }
-
-// hoja Inversiones: serie mensual del valor de la cuenta en USD (columna BALANZ)
 function buildInversiones(matrix){
   const raw=(matrix||[]).filter(r=>r.some(c=>norm(c)!==''));
   if(!raw.length) return null;
@@ -785,8 +509,9 @@ function buildInversiones(matrix){
       const ag=num(row[iAg]), ma=num(row[iMa]);
       if(!acc[act]) acc[act]={total:0,agos:0,mati:0,owners:new Set(),split:null};
       const a=acc[act]; a.total+=nom;
-      if(tipo.includes('split')) a.split={agos:ag,mati:ma};   // el split fija el total post-split
-      else { a.agos+=ag; a.mati+=ma; }
+      if(tipo.includes('split')){                              // el split fija el total post-split y reinicia el desglose
+        a.split={agos:ag,mati:ma}; a.agos=ag; a.mati=ma;
+      } else { a.agos+=ag; a.mati+=ma; }                      // filas posteriores al split suman encima
       if(ag>0) a.owners.add('agos'); if(ma>0) a.owners.add('mati');
     }
   }
@@ -794,7 +519,7 @@ function buildInversiones(matrix){
   for(const [act,a] of Object.entries(acc)){
     if(!(a.total>0)) continue;                                 // descarto lo vendido (neto 0 o negativo)
     let agos, mati;
-    if(a.split){ agos=a.split.agos; mati=a.split.mati; }       // split: usa el total reconciliado
+    if(a.split){ agos=a.agos; mati=a.mati; }                   // split: base reconciliada + compras/ventas posteriores
     else if(a.owners.size<=1){                                 // un solo dueño: le asigno el total del activo
       if(a.owners.has('mati')){ mati=a.total; agos=0; } else { agos=a.total; mati=0; }
     } else { agos=a.agos; mati=a.mati; }                       // varios dueños: suma de columnas
@@ -804,577 +529,268 @@ function buildInversiones(matrix){
 
   return { serie, valorActual: serie.length?serie[serie.length-1].val:0, valorInicial: serie.length?serie[0].val:0, tenencias };
 }
-function prevKeys(key,n){
-  const [y,m]=key.split('-').map(Number); const out=[];
-  let yy=y, mm=m;
-  for(let i=0;i<n;i++){ mm--; if(mm<1){mm=12;yy--;} out.push(`${yy}-${String(mm).padStart(2,'0')}`); }
-  return out;
+
+/* ============ estado y modelo ============ */
+const ST = { rows:[], ing:{}, cuo:{total:{},items:[]}, pat:null, sel:null, charts:{}, showAll:false };
+const HOY = () => new Date();
+const CUR = () => { const d=HOY(); return keyOf(d.getFullYear(), d.getMonth()); };
+const kAdd = (k,n) => { let [y,m]=k.split("-").map(Number); m+=n; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return `${y}-${String(m).padStart(2,"0")}`; };
+const kLabel = (k,abbr) => { const [y,m]=k.split("-").map(Number); return (abbr?MES_ABBR:MESES)[m-1] + (abbr?" "+String(y).slice(2):""); };
+
+function rarezas(){
+  const lim=new Date(HOY().getFullYear(), HOY().getMonth()+2, 1);
+  return ST.rows.filter(r=> r.y>HOY().getFullYear()+0 && r.key>kAdd(CUR(),1) || (r.fecha && r.fecha>=lim));
+}
+function mes(k){
+  const rows=ST.rows.filter(r=>r.key===k);
+  const by={}, det={};
+  for(const r of rows){ by[r.rubro]=(by[r.rubro]||0)+r.monto; (det[r.rubro]=det[r.rubro]||{})[r.cat]=(det[r.rubro][r.cat]||0)+r.monto; }
+  // cuotas: cada plan va al rubro de su categoría (ej. un regalo en cuotas suma en "Salidas y regalos")
+  let cuotas=0;
+  if(ST.cuo.items&&ST.cuo.items.length){
+    for(const it of ST.cuo.items){ const v=it.by[k]; if(!v) continue; cuotas+=v;
+      const id=rubroDe({balde:it.balde,cat:it.cat||it.art});
+      by[id]=(by[id]||0)+v; (det[id]=det[id]||{})[`${it.art} (cuota)`]=v; }
+  } else if(ST.cuo.total&&ST.cuo.total[k]){ cuotas=ST.cuo.total[k]; by.otros=(by.otros||0)+cuotas; (det.otros=det.otros||{})["Cuotas del mes"]=cuotas; }
+  const salidas=Object.values(by).reduce((a,b)=>a+b,0);
+  let ingreso=ST.ing[k], ingresoFalta=false;
+  if(!ingreso){ ingresoFalta=true; const prev=Object.keys(ST.ing).filter(x=>x<=k).sort().pop(); ingreso=prev?ST.ing[prev]:0; }
+  return { k, rows, by, det, cuotas, salidas, ahorro:by.ahorro||0, ingreso, ingresoFalta, queda:ingreso-salidas };
+}
+function mesesConDatos(){ return [...new Set(ST.rows.map(r=>r.key))].filter(k=>k<=CUR()).sort(); }
+function promedio(k, n){
+  const prev=mesesConDatos().filter(x=>x<k).slice(-n);
+  const acc={}; prev.forEach(p=>{ const m=mes(p); for(const id in m.by) acc[id]=(acc[id]||0)+m.by[id]; });
+  for(const id in acc) acc[id]/=prev.length||1;
+  return { prev, avg:acc };
 }
 
-/* ---------- chart helpers ---------- */
-function destroyAll(){ Object.values(STATE.charts).forEach(c=>{try{c.destroy()}catch(e){}}); STATE.charts={}; }
-function baseOpts(P){
-  return {
-    responsive:true, maintainAspectRatio:false,
-    interaction:{intersect:false,mode:'index'},
-    plugins:{
-      legend:{display:false},
-      tooltip:{
-        backgroundColor:P.surface, titleColor:P.ink, bodyColor:P.ink2,
-        borderColor:P.axis, borderWidth:1, padding:10, cornerRadius:8,
-        titleFont:{family:'system-ui',weight:'600'}, bodyFont:{family:'system-ui'},
-        callbacks:{}
-      }
-    },
-    scales:{}
-  };
-}
-function axis(P,opts={}){
-  return Object.assign({
-    grid:{color:P.grid,drawTicks:false},
-    border:{display:false},
-    ticks:{color:P.muted,font:{family:'system-ui',size:11}}
-  },opts);
-}
-function legendInto(el,items){
-  el.innerHTML=items.map(it=>`<span class="it"><span class="sw" style="background:${it.c}"></span>${it.l}</span>`).join('');
-}
-
-/* ---------- render ---------- */
+/* ============ render ============ */
 function render(){
-  const P=palette();
-  const key=STATE.sel;
-  const m=STATE.model.byKey[key];
-  const [ , ] = key.split('-');
-  const anio=m?m.anio:key.slice(0,4);
-  const mi=m?m.mi:(parseInt(key.slice(5))-1);
-  const ingreso=ingresoDe(anio,mi);
-  const baldes=BALDE_ORDER.map(b=>(m&&m.baldes[b])||0);
-  const totalOut=baldes.reduce((a,b)=>a+b,0);
-  const gastos=(m?.baldes.Esenciales||0)+(m?.baldes.Personales||0);
-  const guardado=(m?.baldes.Ahorro||0)+(m?.baldes.Vacaciones||0);
-  const tasa=ingreso?(m?.baldes.Ahorro||0)/ingreso:0;
-  const sinAsignar=ingreso-totalOut;
-
-  destroyAll();
-  renderKPIs(P,{ingreso,gastos,guardado,tasa,sinAsignar,totalOut,ingLive:ingresoEsLive(anio,mi)});
-  renderBullets(P,{anio,mi,ingreso,m});
-  renderEvo(P,anio);
-  renderPct(P,anio);
-  renderBaldeDonut(P,m);
-  renderTop(P,m);
-  renderVs(P,key,m);
-  renderFV(P,m);
-  renderTable(m);
-  renderTasa(P,anio);
-  renderAcum(P,anio);
-  renderObjetivos(P,{anio,mi,ingreso,m});
-  renderComp(P,m,anio);
-  renderCuotas(P,key);
-  renderPatrimonio(P);
-  renderFoot();
+  Object.values(ST.charts).forEach(c=>{try{c.destroy()}catch(e){}}); ST.charts={};
+  const k=ST.sel, m=mes(k), isCur=k===CUR();
+  const d=HOY();
+  $("#hoy").textContent = d.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+  renderAvisos(m,isCur);
+  renderHero(m,isCur);
+  renderCascada(m);
+  renderCmp(m,isCur);
+  renderProx();
+  renderList(m,isCur);
+  renderPat();
 }
 
-function statusFor(uso,pace,isSaving){
-  if(isSaving){
-    if(uso>=1.0) return {k:'good',c:'var(--good)',t:'Objetivo cumplido'};
-    if(uso>=0.7) return {k:'good',c:'var(--good)',t:'En buen camino'};
-    return {k:'save',c:null,t:'En progreso'};   // usa el color del balde
-  }
-  if(uso>1.0) return {k:'crit',c:'var(--crit)',t:'Excedido'};
-  if(uso>=0.9) return {k:'serious',c:'var(--serious)',t:'Al límite'};
-  if(uso>=0.7 || (pace!=null && uso>pace+0.12)) return {k:'warn',c:'var(--warn)',t:'Atención'};
-  return {k:'good',c:'var(--good)',t:'OK'};
+function renderAvisos(m,isCur){
+  const a=[];
+  if(!m.ingreso) a.push(`No pude leer tus ingresos de la hoja Ingresos, así que no puedo calcular cuánto te queda.`);
+  if(m.ingresoFalta && m.ingreso) a.push(`Todavía no está cargado tu sueldo de <b>${kLabel(m.k)}</b> en la hoja Ingresos. Por ahora uso el del mes anterior.`);
+  const raras=rarezas();
+  if(raras.length) a.push(`Hay ${raras.length===1?"un gasto":raras.length+" gastos"} con una fecha rara (${raras.slice(0,3).map(r=>r.fecha?r.fecha.toLocaleDateString("es-AR"):r.key).join(", ")}). Seguro es un error de tipeo: revisalo en la planilla.`);
+  $("#avisos").innerHTML=a.map(t=>`<div class="banner">${t}</div>`).join("");
 }
 
-function renderKPIs(P,d){
-  const tasaObj=CONFIG.objetivoAhorro;
-  const tchip = d.tasa>=tasaObj? 'good' : (d.tasa>=tasaObj*0.6?'warn':'crit');
-  const sChip = d.sinAsignar>=0?'good':'crit';
-  const tiles=[
-    {lbl:'Ingreso del mes', val:fmt.format(d.ingreso), sub:(d.ingLive?'Sueldo + extras · hoja Ingresos (en vivo)':'Estimado (editable en el código)')},
-    {lbl:'Gastos (Esen. + Pers.)', val:fmt.format(d.gastos), sub:d.ingreso?pct(d.gastos/d.ingreso)+' del ingreso':''},
-    {lbl:'Guardado (Ahorro + Vac.)', val:fmt.format(d.guardado), chip:{k:tchip,t:'Tasa ahorro '+pct(d.tasa)}},
-    {lbl: d.sinAsignar>=0?'Sin asignar':'Te pasaste', val:fmt.format(Math.abs(d.sinAsignar)), chip:{k:sChip,t:d.sinAsignar>=0?'Dentro del ingreso':'Sobre el ingreso'}}
-  ];
-  $('#kpis').innerHTML=tiles.map(t=>`
-    <div class="card kpi">
-      <span class="lbl">${t.lbl}</span>
-      <span class="val">${t.val}</span>
-      ${t.sub?`<p class="sub">${t.sub}</p>`:''}
-      ${t.chip?`<span class="chip ${t.chip.k}">${t.chip.t}</span>`:''}
-    </div>`).join('');
-}
-
-function renderBullets(P,{anio,mi,ingreso,m}){
-  const now=new Date();
-  const isCur = (parseInt(anio)===now.getFullYear() && mi===now.getMonth());
-  const dim=new Date(parseInt(anio),mi+1,0).getDate();
-  const pace= isCur? now.getDate()/dim : null;
-  $('#baldesSub').textContent = `Objetivo del mes según tu ingreso (${fmt.format(ingreso)})`;
-  const colors={Esenciales:P.s[0],Personales:P.s[1],Ahorro:P.s[2],Vacaciones:P.s[3]};
-  let html='';
-  for(const b of BALDE_ORDER){
-    const isSaving = (b==='Ahorro'||b==='Vacaciones');
-    const gasto=(m&&m.baldes[b])||0;
-    const presup=ingreso*BALDES()[b];
-    const uso= presup>0? gasto/presup : 0;
-    const st=statusFor(uso,pace,isSaving);
-    const w=Math.min(100,uso*100);
-    const fillColor = st.c ? st.c : colors[b];
-    let detail;
-    if(isSaving) detail = uso>=1 ? ('guardaste '+fmt.format(gasto)) : ('faltan '+fmt.format(Math.max(0,presup-gasto))+' para el objetivo');
-    else detail = uso>1 ? ('excedido '+fmt.format(gasto-presup)) : ('quedan '+fmt.format(presup-gasto));
-    const cuoNota = (b==='Personales' && m && m.cuotasMes>0) ? ` · incluye ${fmt.format(m.cuotasMes)} en cuotas` : '';
-    html+=`<div class="bullet">
-      <div class="top">
-        <span class="name"><span class="dotb" style="background:${colors[b]}"></span>${b} <span class="mini">· ${Math.round(BALDES()[b]*100)}%</span></span>
-        <span class="amt">${fmt.format(gasto)} / ${fmt.format(presup)}</span>
-      </div>
-      <div class="track"><div class="fill" style="width:${w}%;background:${fillColor}"></div><div class="mark" style="left:100%"></div></div>
-      <div class="msg"><span class="dotb" style="background:${fillColor}"></span>${st.t} · ${detail} (${pct(uso)})${cuoNota}</div>
-    </div>`;
-  }
-  $('#bullets').innerHTML=html;
-}
-
-function renderEvo(P,anio){
-  $('#evoYear').textContent=anio;
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  const labels=MES_ABBR;
-  const ds=BALDE_ORDER.map((b,i)=>({
-    label:b, data:keys.map(k=>STATE.model.byKey[k]?.baldes[b]||0),
-    backgroundColor:P.s[i], stack:'g', borderRadius:3, borderWidth:2, borderColor:P.surface,
-    barPercentage:.8, categoryPercentage:.72
-  }));
-  const ing={label:'Ingreso',type:'line',data:keys.map(k=>ingresoDe(anio,parseInt(k.slice(5))-1)),
-    borderColor:P.ink, backgroundColor:P.ink, borderWidth:2, pointRadius:0, pointHoverRadius:5, tension:.25, order:0};
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.dataset.label}: ${fmt.format(c.parsed.y)}`;
-  o.scales={ x:axis(P,{stacked:true,grid:{display:false}}),
-             y:axis(P,{stacked:true,ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1e6).toFixed(1)+'M'}}) };
-  STATE.charts.evo=new Chart($('#cEvo'),{type:'bar',data:{labels,datasets:[...ds,ing]},options:o});
-  legendInto($('#evoLeg'),[...BALDE_ORDER.map((b,i)=>({l:b,c:P.s[i]})),{l:'Ingreso',c:P.ink}]);
-}
-
-function renderPct(P,anio){
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  const data=keys.map(k=>{const m=STATE.model.byKey[k]; const ing=ingresoDe(anio,parseInt(k.slice(5))-1);
-    const tot=m?Object.values(m.baldes).reduce((a,b)=>a+b,0):0; return ing?tot/ing*100:0;});
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>`Usado: ${fmt1.format(c.parsed.y)}%`;
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>v+'%'},suggestedMax:100}) };
-  const cols=data.map(v=> v>100?P.crit : v>=90?P.serious : v>=70?P.warn : P.s[0]);
-  STATE.charts.pct=new Chart($('#cPct'),{type:'bar',
-    data:{labels:MES_ABBR,datasets:[{data,backgroundColor:cols,borderRadius:4,barPercentage:.7,categoryPercentage:.8}]},
-    options:o});
-}
-
-function renderBaldeDonut(P,m){
-  $('#donutSub').textContent = STATE.model.byKey[STATE.sel]? `${m.mes} ${m.anio}` : '';
-  const vals=BALDE_ORDER.map(b=>(m&&m.baldes[b])||0);
-  const tot=vals.reduce((a,b)=>a+b,0)||1;
-  const o=baseOpts(P); o.cutout='62%';
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.label}: ${fmt.format(c.parsed)} (${pct(c.parsed/tot)})`;
-  STATE.charts.bd=new Chart($('#cBaldeDonut'),{type:'doughnut',
-    data:{labels:BALDE_ORDER,datasets:[{data:vals,backgroundColor:P.s.slice(0,4),borderColor:P.surface,borderWidth:2,hoverOffset:6}]},
-    options:o});
-  legendInto($('#baldeLeg'),BALDE_ORDER.map((b,i)=>({l:`${b} · ${pct(vals[i]/tot)}`,c:P.s[i]})));
-}
-
-function renderTop(P,m){
-  const cats = m? Object.entries(m.cats).sort((a,b)=>b[1]-a[1]).slice(0,10) : [];
-  $('#topSub').textContent = m? `${m.mes} ${m.anio} · top ${cats.length}` : '';
-  const labels=cats.map(c=>c[0]); const data=cats.map(c=>c[1]);
-  const o=baseOpts(P); o.indexAxis='y';
-  o.interaction={intersect:false,mode:'index',axis:'y'}; // barras horizontales: el tooltip sigue la FILA (eje Y), no la posición X del cursor
-  o.plugins.tooltip.callbacks.label=(c)=>fmt.format(c.parsed.x);
-  o.scales={ x:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}),
-             y:axis(P,{grid:{display:false},ticks:{color:P.ink2,font:{size:11.5}}}) };
-  STATE.charts.top=new Chart($('#cTop'),{type:'bar',
-    data:{labels,datasets:[{data,backgroundColor:P.s[0],borderRadius:4,barPercentage:.82,categoryPercentage:.86}]},
-    options:o});
-}
-
-function renderVs(P,key,m){
-  const prev=prevKeys(key,6);
-  const catTot={}; const catCount={};
-  for(const pk of prev){ const pm=STATE.model.byKey[pk]; if(!pm)continue;
-    for(const [c,v] of Object.entries(pm.cats)){ catTot[c]=(catTot[c]||0)+v; catCount[c]=(catCount[c]||0)+1; } }
-  const cats = m? Object.entries(m.cats).sort((a,b)=>b[1]-a[1]).slice(0,8) : [];
-  const labels=cats.map(c=>c[0]);
-  const mesData=cats.map(c=>c[1]);
-  const avgData=cats.map(c=>{const n=catCount[c[0]]||0; return n?catTot[c[0]]/n:0;});
-  const o=baseOpts(P); o.indexAxis='y';
-  o.interaction={intersect:false,mode:'index',axis:'y'}; // barras horizontales: el tooltip sigue la FILA (eje Y), no la posición X del cursor
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.dataset.label}: ${fmt.format(c.parsed.x)}`;
-  o.scales={ x:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}),
-             y:axis(P,{grid:{display:false},ticks:{color:P.ink2,font:{size:11.5}}}) };
-  STATE.charts.vs=new Chart($('#cVs'),{type:'bar',data:{labels,datasets:[
-    {label:'Este mes',data:mesData,backgroundColor:P.s[0],borderRadius:4,barPercentage:.9,categoryPercentage:.7},
-    {label:'Prom. 6m',data:avgData,backgroundColor:P.s[1],borderRadius:4,barPercentage:.9,categoryPercentage:.7}
-  ]},options:o});
-  legendInto($('#vsLeg'),[{l:'Este mes',c:P.s[0]},{l:'Promedio 6 meses',c:P.s[1]}]);
-}
-
-function renderFV(P,m){
-  const fv=m?m.fv:{Fijo:0,Variable:0};
-  const vals=[fv.Fijo||0,fv.Variable||0]; const tot=vals[0]+vals[1]||1;
-  const o=baseOpts(P); o.cutout='62%';
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.label}: ${fmt.format(c.parsed)} (${pct(c.parsed/tot)})`;
-  STATE.charts.fv=new Chart($('#cFV'),{type:'doughnut',
-    data:{labels:['Fijo','Variable'],datasets:[{data:vals,backgroundColor:[P.s[0],P.s[1]],borderColor:P.surface,borderWidth:2,hoverOffset:6}]},
-    options:o});
-  legendInto($('#fvLeg'),[{l:`Fijo · ${pct(vals[0]/tot)}`,c:P.s[0]},{l:`Variable · ${pct(vals[1]/tot)}`,c:P.s[1]}]);
-}
-
-function renderTable(m){
-  const cats = m? Object.entries(m.cats).sort((a,b)=>b[1]-a[1]) : [];
-  const tot=cats.reduce((a,c)=>a+c[1],0)||1;
-  let h=`<thead><tr><th>Categoría</th><th>Balde</th><th>Monto</th><th>%</th></tr></thead><tbody>`;
-  for(const [c,v] of cats){ h+=`<tr><td>${c}</td><td>${m.catBalde[c]||''}</td><td>${fmt.format(v)}</td><td>${pct(v/tot)}</td></tr>`; }
-  h+=`<tr style="font-weight:700"><td>Total</td><td></td><td>${fmt.format(tot)}</td><td>100%</td></tr></tbody>`;
-  $('#catTable').innerHTML=h;
-}
-
-function renderTasa(P,anio){
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  const data=keys.map(k=>{const m=STATE.model.byKey[k]; const ing=ingresoDe(anio,parseInt(k.slice(5))-1);
-    return (m&&ing)? (m.baldes.Ahorro||0)/ing*100 : 0;});
-  const obj=CONFIG.objetivoAhorro*100;
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>`Tasa: ${fmt1.format(c.parsed.y)}%`;
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>v+'%'},suggestedMax:Math.max(obj+10,Math.max(...data)+5)}) };
-  o.plugins.annObj={obj};
-  const objLine={id:'objLine',afterDraw(ch){const {ctx,chartArea:a,scales}=ch; const y=scales.y.getPixelForValue(obj);
-    ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle=P.good;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(a.left,y);ctx.lineTo(a.right,y);ctx.stroke();
-    ctx.setLineDash([]);ctx.fillStyle=P.good;ctx.font='11px system-ui';ctx.textAlign='right';ctx.fillText('objetivo '+obj+'%',a.right-2,y-4);ctx.restore();}};
-  STATE.charts.tasa=new Chart($('#cTasa'),{type:'line',
-    data:{labels:MES_ABBR,datasets:[{data,borderColor:P.s[2],backgroundColor:'transparent',borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
-    options:o, plugins:[objLine]});
-}
-
-function renderAcum(P,anio){
-  $('#acumYear').textContent=anio;
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  let acc=0; const data=keys.map(k=>{acc+=STATE.model.byKey[k]?.baldes.Ahorro||0; return acc;});
-  const grad = (ctx)=>{ const {ctx:c,chartArea:a}=ctx.chart; if(!a) return 'transparent';
-    const g=c.createLinearGradient(0,a.top,0,a.bottom); g.addColorStop(0,P.s[0]+'55');g.addColorStop(1,P.s[0]+'05');return g;};
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>`Acumulado: ${fmt.format(c.parsed.y)}`;
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1e6).toFixed(1)+'M'}}) };
-  STATE.charts.acum=new Chart($('#cAcum'),{type:'line',
-    data:{labels:MES_ABBR,datasets:[{data,borderColor:P.s[0],backgroundColor:grad,fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
-    options:o});
-}
-
-function renderObjetivos(P,{anio,mi,ingreso,m}){
-  const ahorro=(m&&m.baldes.Ahorro)||0, ahorroObj=ingreso*BALDES().Ahorro;
-  const vac=(m&&m.baldes.Vacaciones)||0, vacObj=ingreso*BALDES().Vacaciones;
-  // vacaciones acumuladas del año
-  let vacAcc=0; for(let i=0;i<=mi;i++){const k=`${anio}-${String(i+1).padStart(2,'0')}`; vacAcc+=STATE.model.byKey[k]?.baldes.Vacaciones||0;}
-  const bar=(lbl,val,obj,color)=>{const p=obj>0?Math.min(100,val/obj*100):0; const done=val>=obj&&obj>0;
-    return `<div class="obj">
-      <div class="top"><span>${lbl} ${done?'✅':''}</span><span class="mini">${fmt.format(val)} / ${fmt.format(obj)}</span></div>
-      <div class="track"><div class="fill" style="width:${p}%;background:${done?'var(--good)':color}"></div></div>
-      <div class="mini" style="margin-top:4px">${done?'Objetivo cumplido':'Avance '+pct(obj?val/obj:0)}</div>
-    </div>`;};
-  $('#objetivos').innerHTML =
-    bar('Ahorro del mes (20%)',ahorro,ahorroObj,P.s[2]) +
-    bar('Vacaciones del mes (10%)',vac,vacObj,P.s[3]) +
-    `<div class="obj"><div class="top"><span>Vacaciones acumuladas ${anio}</span><span class="mini">${fmt.format(vacAcc)}</span></div></div>`;
-}
-
-function renderComp(P,m,anio){
-  // composición del ahorro: categorías del balde Ahorro en el año
-  const keys=[]; for(let i=0;i<12;i++) keys.push(`${anio}-${String(i+1).padStart(2,'0')}`);
-  const comp={};
-  for(const k of keys){const mm=STATE.model.byKey[k]; if(!mm)continue;
-    for(const [c,v] of Object.entries(mm.cats)){ if(mm.catBalde[c]==='Ahorro') comp[c]=(comp[c]||0)+v; }}
-  const ent=Object.entries(comp).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  $('#compSub').textContent=`En qué guardás la plata · ${anio}`;
-  if(!ent.length){
-    $('#cComp').getContext('2d').clearRect(0,0,9999,9999);
-    $('#compLeg').innerHTML='<span class="mini">Sin movimientos de ahorro cargados este año.</span>'; return; }
-  const tot=ent.reduce((a,e)=>a+e[1],0)||1;
-  const o=baseOpts(P); o.cutout='62%';
-  o.plugins.tooltip.callbacks.label=(c)=>`${c.label}: ${fmt.format(c.parsed)} (${pct(c.parsed/tot)})`;
-  STATE.charts.comp=new Chart($('#cComp'),{type:'doughnut',
-    data:{labels:ent.map(e=>e[0]),datasets:[{data:ent.map(e=>e[1]),backgroundColor:ent.map((_,i)=>P.s[i%8]),borderColor:P.surface,borderWidth:2,hoverOffset:6}]},
-    options:o});
-  legendInto($('#compLeg'),ent.map((e,i)=>({l:`${e[0]} · ${pct(e[1]/tot)}`,c:P.s[i%8]})));
-}
-
-function renderCuotas(P,key){
-  const live = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? STATE.cuotasLive : null;
-  const cuotas = live ? live.cuotas : CONFIG.cuotas;
-  const pendiente = live ? live.pendiente : CONFIG.cuotasPendiente;
-  $('#cuotasSync').textContent = live ? 'en vivo desde tu hoja Cuotas' : `plan cargado al ${CONFIG.syncDate}`;
-  const cur=cuotas[key]||0;
-  const anio=key.slice(0,4), mi=parseInt(key.slice(5))-1;
-  const ing=ingresoDe(anio,mi);
-  const kpis=[
-    {lbl:'Cuota de este mes', val:fmt.format(cur), sub: ing?pct(cur/ing)+' del ingreso':''},
-    {lbl:'Saldo pendiente', val:fmt.format(pendiente), sub: live?'cuotas de este mes en adelante':'de todos los planes'},
-    {lbl:'Meses con cuotas', val:String(Object.values(cuotas).filter(v=>v>0).length), sub: live?'con cuota > 0':'según plan cargado'}
-  ];
-  $('#cuotasKpis').innerHTML=kpis.map(t=>`<div class="card kpi"><span class="lbl">${t.lbl}</span><span class="val">${t.val}</span>${t.sub?`<p class="sub">${t.sub}</p>`:''}</div>`).join('');
-  const ks=Object.keys(cuotas).sort();
-  const labels=ks.map(k=>{const a=k.slice(2,4),mm=parseInt(k.slice(5))-1;return MES_ABBR[mm]+' '+a;});
-  const data=ks.map(k=>cuotas[k]);
-  const cols=ks.map(k=>k===key?P.s[1]:P.s[0]);
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>fmt.format(c.parsed.y);
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}) };
-  STATE.charts.cuotas=new Chart($('#cCuotas'),{type:'bar',
-    data:{labels,datasets:[{data,backgroundColor:cols,borderRadius:4,barPercentage:.8,categoryPercentage:.82}]},
-    options:o});
-}
-
-function fundBlock(total, objetivo, parts, P){
-  let h=`<div class="kpi" style="margin-bottom:12px"><span class="val">${fmtU(total)}</span>`;
-  if(objetivo){
-    const done=total>=objetivo; const p=objetivo>0?Math.min(100,total/objetivo*100):0;
-    h+=`<span class="sub">de ${fmtU(objetivo)} · ${pct(objetivo?total/objetivo:0)} ${done?'✅':''}</span>`+
-       `<div class="track" style="margin-top:8px"><div class="fill" style="width:${p}%;background:${done?'var(--good)':P.s[0]}"></div></div>`+
-       (done?'':`<span class="mini" style="margin-top:5px">Faltan ${fmtU(objetivo-total)}</span>`);
-  }
-  h+=`</div>`;
-  for(const pt of parts){
-    const right = pt.o!=null ? `${fmtU(pt.v)} / ${fmtU(pt.o)} (${pct(pt.o?pt.v/pt.o:0)})` : fmtU(pt.v);
-    const w = pt.o!=null ? (pt.o>0?Math.min(100,pt.v/pt.o*100):0) : (total>0?Math.min(100,pt.v/total*100):0);
-    h+=`<div class="obj"><div class="top"><span class="name" style="font-size:13px"><span class="dotb" style="background:${pt.c}"></span> ${pt.n}</span><span class="mini">${right}</span></div>`+
-       `<div class="track"><div class="fill" style="width:${w}%;background:${pt.c}"></div></div></div>`;
-  }
-  return h;
-}
-function renderPatrimonio(P){
-  const sec=$('#secPatrimonio'); const pat=STATE.patrimonio;
-  if(!pat || (!pat.fondos && !pat.inversiones)){ sec.classList.add('hide'); return; }
-  sec.classList.remove('hide');
-  // Fondo de emergencia (Tranquilidad)
-  if(pat.fondos){
-    const t=pat.fondos.Tranquilidad, v=pat.fondos.Vacaciones;
-    const objT=EMERG_OBJ.Mati+EMERG_OBJ.Agos;
-    $('#emergencia').innerHTML = fundBlock(t.mati+t.agos, objT,
-      [{n:'Mati',v:t.mati,o:EMERG_OBJ.Mati,c:P.s[0]},{n:'Agos',v:t.agos,o:EMERG_OBJ.Agos,c:P.s[2]}], P);
-    $('#vacacionesUsd').innerHTML = fundBlock(v.mati+v.agos, null,
-      [{n:'Mati',v:v.mati,c:P.s[0]},{n:'Agos',v:v.agos,c:P.s[2]}], P);
+function renderHero(m,isCur){
+  if(!m.ingreso){ $("#heroKick").textContent="Gastaste este mes"; $("#heroNum").textContent=money(m.salidas); $("#heroNum").classList.remove("neg"); $("#heroSub").innerHTML="Falta el sueldo en la hoja Ingresos para calcular cuánto te queda."; $("#heroPills").innerHTML=""; return; }
+  const q=m.queda, neg=q<0;
+  const num=$("#heroNum"); num.textContent=money(Math.abs(q)); num.classList.toggle("neg",neg);
+  const pills=[];
+  if(isCur){
+    const d=HOY(); const ny=d.getMonth()===11?d.getFullYear()+1:d.getFullYear(), nm=(d.getMonth()+1)%12;
+    const c1=nHabil(ny,nm,COBRO_DIA_HABIL[0]), c2=nHabil(ny,nm,COBRO_DIA_HABIL[1]);
+    const f1=diasEntre(d,c1), f2=diasEntre(d,c2);
+    const fecha=x=>`${DIAS[x.getDay()]} ${ddmm(x)}`;
+    $("#heroKick").textContent = neg ? "Te pasaste" : "Te quedan";
+    let sub = neg
+      ? `Ya salió más plata de la que cobraste este mes. Cobrás de nuevo entre el <b>${fecha(c1)}</b> y el <b>${fecha(c2)}</b>.`
+      : `hasta que cobres, entre el <b>${fecha(c1)}</b> y el <b>${fecha(c2)}</b> (faltan ${f1} a ${f2} días).`;
+    if(!neg && f2>0) sub += `<br>Para llegar bien, podés gastar unos <b>${money(q/f2)} por día</b>.`;
+    $("#heroSub").innerHTML=sub;
+    const ult=ST.rows.filter(r=>r.fecha && r.fecha<=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)).map(r=>r.fecha).sort((a,b)=>b-a)[0];
+    if(ult){ const dd=diasEntre(ult,d);
+      if(dd<=0) pills.push(`<span class="pill good">✓ Anotaste gastos hoy</span>`);
+      else if(dd<3) pills.push(`<span class="pill">✏️ Última vez que anotaste: ${dd===1?"ayer":"hace "+dd+" días"}</span>`);
+      else pills.push(`<span class="pill warn">⚠️ Hace ${dd} días que no anotás nada. ¿Te falta cargar algo?</span>`);
+    }
   } else {
-    $('#emergencia').innerHTML='<span class="mini">Sin datos de fondos.</span>';
-    $('#vacacionesUsd').innerHTML='';
+    $("#heroKick").textContent = neg ? `En ${kLabel(m.k)} gastaste de más` : `En ${kLabel(m.k)} te sobraron`;
+    $("#heroSub").innerHTML = neg ? `Salió más de lo que cobraste ese mes.` : `de lo que cobraste ese mes, según lo que anotaste.`;
   }
-  // Inversiones
-  const inv=pat.inversiones;
-  if(inv && inv.serie.length){
-    const growth=inv.valorActual-inv.valorInicial;
-    const gpct=inv.valorInicial?growth/inv.valorInicial:0;
-    const last=inv.serie[inv.serie.length-1], first=inv.serie[0];
-    $('#invSub').textContent=`Valor al cierre · ${last.mes} ${last.anio}`;
-    $('#invKpi').innerHTML=`<div class="kpi"><span class="val">${fmtU(inv.valorActual)}</span>`+
-      (growth?`<span class="chip ${growth>=0?'good':'crit'}" style="margin-top:6px">${growth>=0?'▲':'▼'} ${fmtU(Math.abs(growth))} (${pct(Math.abs(gpct))}) desde ${first.mes}</span>`:'')+`</div>`;
-    renderInvChart(P, inv.serie);
-    renderTenencias(P, inv.tenencias||[]);
-  } else {
-    $('#invSub').textContent='Valor de la cartera (cuenta Balanz)';
-    $('#invKpi').innerHTML='<span class="mini">Sin datos de inversiones.</span>';
-    if($('#tenencias')) $('#tenencias').innerHTML='';
-  }
-}
-function renderTenencias(P, ten){
-  const el=$('#tenencias'); if(!el) return;
-  if(!ten.length){ el.innerHTML='<span class="mini">Sin tenencias cargadas.</span>'; return; }
-  let h=`<table><thead><tr><th>Activo</th><th>Agos</th><th>Mati</th><th>Total</th></tr></thead><tbody>`;
-  for(const t of ten){
-    h+=`<tr><td><b>${t.activo}</b></td>`+
-       `<td style="color:${P.s[2]};font-weight:600">${t.agos||'—'}</td>`+
-       `<td style="color:${P.s[0]};font-weight:600">${t.mati||'—'}</td>`+
-       `<td>${t.total}</td></tr>`;
-  }
-  h+=`</tbody></table><div class="legend" style="margin-top:8px"><span class="it"><span class="sw" style="background:${P.s[2]}"></span>Agos</span><span class="it"><span class="sw" style="background:${P.s[0]}"></span>Mati</span></div>`;
-  el.innerHTML=h;
-}
-function renderInvChart(P, serie){
-  const labels=serie.map(s=>MES_ABBR[s.mi]+' '+String(s.anio).slice(2));
-  const data=serie.map(s=>s.val);
-  const grad=(ctx)=>{const{ctx:c,chartArea:a}=ctx.chart;if(!a)return 'transparent';const g=c.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,P.s[2]+'55');g.addColorStop(1,P.s[2]+'05');return g;};
-  const o=baseOpts(P);
-  o.plugins.tooltip.callbacks.label=(c)=>'US$'+Math.round(c.parsed.y).toLocaleString('es-AR');
-  o.scales={ x:axis(P,{grid:{display:false}}),
-             y:axis(P,{ticks:{color:P.muted,font:{size:11},callback:v=>'US$'+(v/1000).toFixed(1)+'k'}}) };
-  STATE.charts.inv=new Chart($('#cInv'),{type:'line',
-    data:{labels,datasets:[{data,borderColor:P.s[2],backgroundColor:grad,fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
-    options:o});
-}
-function renderFoot(){
-  const cuotasFuente = (STATE.cuotasLive && STATE.cuotasLive.cuotas && Object.keys(STATE.cuotasLive.cuotas).length) ? 'en vivo desde tu hoja <b>Cuotas</b>' : `config editable (sync ${CONFIG.syncDate})`;
-  $('#foot').innerHTML=`Datos de gastos e ingresos: en vivo desde tus hojas <b>Movimientos</b> e <b>INGRESOS</b>. Cuotas: ${cuotasFuente}.
-    · El tablero se actualiza cada vez que lo abrís y cada 15 min mientras esté abierto. · Regla 50/20/20/10.`;
+  if(m.ahorro>0) pills.push(`<span class="pill good">💵 Guardaste ${kmoney(m.ahorro)} para ahorro</span>`);
+  $("#heroPills").innerHTML=pills.join("");
+
 }
 
-/* ---------- period selector ---------- */
+function renderCascada(m){
+  // Lista simple: cada rubro con una barra que arranca desde la izquierda (más largo = más plata)
+  const gastos=RUBROS.filter(R=>!R.ahorro && (m.by[R.id]||0)>0).sort((a,b)=>m.by[b.id]-m.by[a.id]);
+  const orden=[...gastos, ...(m.ahorro>0?[RUB.ahorro]:[])];
+  const q=m.queda;
+  const max=Math.max(...orden.map(R=>m.by[R.id]), Math.max(q,0))||1;
+  const ing=m.ingreso||1;
+  let h=`<div class="wfhead">Cobraste <b class="num">${money(m.ingreso)}</b> y se fue así:</div>`;
+  for(const R of orden){
+    const v=m.by[R.id];
+    const det=Object.entries(m.det[R.id]||{}).sort((x,y)=>y[1]-x[1]).map(([c,x])=>`<span>${esc(c)}: <b>${money(x)}</b></span>`).join("");
+    h+=`<div class="wfr" data-id="${R.id}"><div class="wfl">${R.emoji} ${R.nombre}</div>`+
+       `<div class="wft"><span class="b ${R.ahorro?"stripe":""}" style="width:${v/max*100}%;background:var(${R.c})"></span>`+
+       `<span class="v num">${money(v)} <em>${pctTxt(v/ing)}</em></span></div></div>`+
+       `<div class="wfd" id="wfd_${R.id}">${R.ahorro?"No es un gasto: es plata que guardaste. ":""}${det}</div>`;
+  }
+  h+=`<div class="wfr total queda ${q<0?"neg":""}"><div class="wfl">${q<0?"😬 Te pasaste":"✨ Te queda"}</div>`+
+     `<div class="wft"><span class="b" style="width:${Math.abs(q)/max*100}%"></span><span class="v num">${money(Math.abs(q))} <em>${pctTxt(Math.abs(q)/ing)}</em></span></div></div>`;
+  $("#wf").innerHTML=h;
+  $("#wf").querySelectorAll(".wfr[data-id]").forEach(el=>el.onclick=()=>{ $("#wfd_"+el.dataset.id).classList.toggle("open"); });
+}
+
+function renderCmp(m,isCur){
+  const {prev,avg}=promedio(m.k,3);
+  const sec=$("#secCmp");
+  if(!prev.length){ sec.classList.add("hide"); return; } sec.classList.remove("hide");
+  $("#cmpLead").innerHTML = `Comparado con lo que gastás normalmente (promedio de ${prev.map(p=>kLabel(p)).join(", ").replace(/, ([^,]*)$/," y $1")}).`+
+    (isCur?` <b>Ojo:</b> el mes todavía no terminó.`:"");
+  const ids=RUBROS.filter(r=>!r.ahorro).map(r=>r.id).filter(id=>(m.by[id]||0)>0||(avg[id]||0)>0);
+  const max=Math.max(...ids.map(id=>Math.max(m.by[id]||0,avg[id]||0)))||1;
+  ids.sort((a,b)=>Math.max(m.by[b]||0,avg[b]||0)-Math.max(m.by[a]||0,avg[a]||0));
+  $("#cmp").innerHTML=ids.map(id=>{
+    const R=RUB[id], v=m.by[id]||0, a=avg[id]||0, d=v-a, rel=a?d/a:1;
+    let cls="eq", txt="≈ igual";
+    if(Math.abs(rel)>0.1 && Math.abs(d)>5000){ cls=d>0?"up":"dn"; txt=(d>0?"↑ ":"↓ ")+kmoney(Math.abs(d)); }
+    return `<div class="cmpr" title="Este mes ${money(v)} · Promedio ${money(a)}"><div class="nm">${R.emoji} ${R.nombre}</div>`+
+      `<div class="bars"><span class="now" style="width:${v/max*100}%;background:var(${R.c})"></span>${a?`<span class="avg" style="left:calc(${a/max*100}% - 1px)"></span>`:""}</div>`+
+      `<div class="dl ${cls}">${txt}<small>${kmoney(v)}</small></div></div>`;
+  }).join("");
+  $("#cmpLeg").innerHTML=`<span><i class="sw" style="background:var(--ink2)"></i>Este mes</span><span><i style="display:inline-block;width:2px;height:12px;background:var(--ink)"></i>Lo normal (promedio)</span><span style="color:var(--bad)">↑ más que siempre</span><span style="color:var(--good)">↓ menos que siempre</span>`;
+}
+
+function renderProx(){
+  const sec=$("#secProx"); const cur=CUR();
+  const ks=[]; for(let i=1;i<=6;i++) ks.push(kAdd(cur,i));
+  // solo cuotas de compras (los aportes de ahorro en cuotas no son deuda)
+  const cuoMes=k=> (ST.cuo.items&&ST.cuo.items.length) ? ST.cuo.items.filter(it=>it.balde!=="Ahorro"&&it.balde!=="Vacaciones").reduce((a,it)=>a+(it.by[k]||0),0) : ((ST.cuo.total||{})[k]||0);
+  const vals=ks.map(cuoMes);
+  if(!vals.some(v=>v>0)){ sec.classList.add("hide"); return; } sec.classList.remove("hide");
+  const sorted=vals.filter(v=>v>0).sort((a,b)=>a-b); const med=sorted[Math.floor(sorted.length/2)]||0;
+  const pico=vals.map(v=>v>med*1.5 && v>0);
+  const ing=ST.ing[cur]||Object.values(ST.ing).pop()||0;
+  const s8=cssv("--s8"), s0=cssv("--s0"), ink2=cssv("--ink2"), grid=cssv("--grid"), surf=cssv("--surface");
+  ST.charts.prox=new Chart($("#cProx"),{type:"bar",
+    data:{labels:ks.map(k=>kLabel(k,true)),datasets:[{data:vals,backgroundColor:pico.map(p=>p?s8:s0),borderRadius:{topLeft:4,topRight:4},borderSkipped:"bottom",maxBarThickness:42,borderColor:surf,borderWidth:{top:0,left:2,right:2,bottom:0}}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.y)+(ing?` · ${pctTxt(c.parsed.y/ing)} del sueldo`:"")}}},
+      scales:{x:{grid:{display:false},ticks:{color:ink2,font:{size:12,weight:"600"},maxRotation:0,autoSkip:false},border:{display:false}},
+              y:{grid:{color:grid},border:{display:false},ticks:{color:ink2,font:{size:11},maxTicksLimit:5,callback:v=>kmoney(v)}}}}});
+  const iMax=vals.indexOf(Math.max(...vals));
+  const mk=ks[iMax], mm=+mk.slice(5);
+  let note=`En <b>${kLabel(mk)}</b> vas a pagar <b>${money(vals[iMax])}</b> en cuotas`+(ing?`, el ${pctTxt(vals[iMax]/ing)} de tu sueldo`:"")+".";
+  if(pico[iMax]) note+= (mm===12||mm===6) ? ` Es el mes del aguinaldo: conviene reservar una parte para esto.` : ` Es bastante más que un mes normal (${kmoney(med)}): conviene tenerlo en cuenta antes.`;
+  else note+=` Los próximos meses vienen parejos.`;
+  $("#proxNote").innerHTML=note;
+}
+
+function renderList(m,isCur){
+  const rows=m.rows.slice().map((r,i)=>({r,i})).sort((a,b)=>((b.r.fecha||0)-(a.r.fecha||0))||(b.i-a.i)).map(x=>x.r);
+  $("#listLead").textContent = rows.length ? `${rows.length} gastos anotados en ${kLabel(m.k)}.` : `Todavía no anotaste nada en ${kLabel(m.k)}.`;
+  const show=ST.showAll?rows:rows.slice(0,10);
+  const d=HOY(); let last="", h="";
+  for(const r of show){
+    let lbl="Sin fecha";
+    if(r.fecha){ const dd=diasEntre(r.fecha,d); lbl = dd===0?"Hoy":dd===1?"Ayer":`${DIAS[r.fecha.getDay()]} ${ddmm(r.fecha)}`; }
+    if(lbl!==last){ h+=`<li class="day">${lbl}</li>`; last=lbl; }
+    const R=RUB[r.rubro];
+    const extra=/com[uú]n/i.test(r.quien)?" · tu mitad":"";
+    h+=`<li class="it"><div class="d"><span class="ico" style="background:color-mix(in srgb, var(${R.c}) 16%, transparent)">${R.emoji}</span><div><b>${esc(r.desc||r.cat)}</b><small>${esc(r.cat)}${extra}</small></div></div><span class="m num">${money(r.monto)}</span></li>`;
+  }
+  $("#list").innerHTML=h;
+  $("#moreBtn").classList.toggle("hide", rows.length<=10);
+  $("#moreBtn").textContent = ST.showAll?"Ver menos":`Ver los ${rows.length} del mes`;
+}
+
+function renderPat(){
+  const sec=$("#secPat"), p=ST.pat;
+  if(!p||(!p.fondos&&!p.inv)){ sec.classList.add("hide"); return; } sec.classList.remove("hide");
+  const block=(titulo,emoji,total,parts,obj)=>{
+    let h=`<p class="kick">${emoji} ${titulo}</p><div class="val num">${fmtU(total)}</div>`;
+    if(obj){ const pc=Math.min(1,total/obj); h+=`<div class="track"><i style="width:${pc*100}%;background:var(--good)"></i></div><div class="frow" style="margin-top:4px;color:var(--muted)">${pc>=1?"✓ Objetivo cumplido":`${pctTxt(pc)} de ${fmtU(obj)}`}</div>`; }
+    for(const pt of parts) h+=`<div class="frow"><div class="top2"><span>${pt.n}</span><b class="num">${fmtU(pt.v)}</b></div></div>`;
+    return h;
+  };
+  if(p.fondos){
+    const t=p.fondos.Tranquilidad, v=p.fondos.Vacaciones;
+    $("#fEmerg").innerHTML=block("Fondo de emergencia","🛟",t.agos+t.mati,[{n:"Vos",v:t.agos},{n:"Mati",v:t.mati}],EMERG_OBJ.Agos+EMERG_OBJ.Mati);
+    $("#fVac").innerHTML=block("Para vacaciones","🏖️",v.agos+v.mati,[{n:"Vos",v:v.agos},{n:"Mati",v:v.mati}]);
+  }
+  const inv=p.inv;
+  if(inv&&inv.serie&&inv.serie.length){
+    const g=inv.valorActual-inv.valorInicial, first=inv.serie[0];
+    $("#fInv").innerHTML=`<p class="kick">📈 Inversiones</p><div class="val num">${fmtU(inv.valorActual)}</div>`+
+      (g?`<div class="frow"><span class="pill ${g>=0?"good":"bad"}">${g>=0?"↑":"↓"} ${fmtU(Math.abs(g))} desde ${first.mes}</span></div>`:"");
+    const s=cssv("--s1"), ink2=cssv("--ink2"), grid=cssv("--grid");
+    ST.charts.inv=new Chart($("#cInv"),{type:"line",
+      data:{labels:inv.serie.map(x=>MES_ABBR[x.mi]+" "+String(x.anio).slice(2)),datasets:[{data:inv.serie.map(x=>x.val),borderColor:s,backgroundColor:s+"22",fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.25}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{intersect:false,mode:"index"},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtU(c.parsed.y)}}},
+        scales:{x:{grid:{display:false},ticks:{color:ink2},border:{display:false}},y:{grid:{color:grid},border:{display:false},ticks:{color:ink2,maxTicksLimit:5,callback:v=>"US$"+(v/1000).toFixed(1)+"k"}}}}});
+    const ten=inv.tenencias||[];
+    $("#tenencias").innerHTML= ten.length?`<table class="ten"><thead><tr><th>Activo</th><th>Vos</th><th>Mati</th><th>Total</th></tr></thead><tbody>${ten.map(t=>`<tr><td><b>${esc(t.activo)}</b></td><td>${t.agos||"—"}</td><td>${t.mati||"—"}</td><td>${t.total}</td></tr>`).join("")}</tbody></table><p class="foot" style="text-align:left">Cantidades (nominales), no valuadas a precio.</p>`:"";
+  } else $("#fInv").innerHTML="";
+}
+
+/* ============ carga ============ */
+function setDot(k,t){ $("#dot").className="dot "+k; $("#upd").textContent=t; }
 function fillPeriodo(){
-  const sel=$('#periodo'); sel.innerHTML='';
-  const ms=STATE.model.months.slice().reverse();
-  for(const k of ms){ const m=STATE.model.byKey[k];
-    const o=document.createElement('option'); o.value=k; o.textContent=`${m.mes} ${m.anio}`; sel.appendChild(o); }
-  // default: mes actual si existe, si no el último
-  const now=new Date(); const curKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  STATE.sel = STATE.model.byKey[curKey]? curKey : ms[0];
-  sel.value=STATE.sel;
-}
-
-/* ---------- load (gviz + JSONP, sin CORS) ---------- */
-function loadGviz(sheet, fileId){
-  sheet = sheet || SHEET_NAME;
-  fileId = fileId || FILE_ID;
-  return new Promise((resolve,reject)=>{
-    const cb='__gviz_'+Math.floor(performance.now())+'_'+(loadGviz._n=(loadGviz._n||0)+1);
-    const url=`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq`+
-              `?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(sheet)}&nc=`+Math.floor(performance.now());
-    const s=document.createElement('script');
-    let done=false;
-    const cleanup=()=>{ try{delete window[cb]}catch(e){window[cb]=undefined} s.remove(); };
-    const to=setTimeout(()=>{ if(!done){ done=true; cleanup(); reject(new Error('timeout')); } }, 20000);
-    window[cb]=(resp)=>{ if(done)return; done=true; clearTimeout(to); cleanup(); resolve(resp); };
-    s.onerror=()=>{ if(done)return; done=true; clearTimeout(to); cleanup(); reject(new Error('script-error')); };
-    s.src=url; document.head.appendChild(s);
-  });
+  const ks=[...new Set([...mesesConDatos(), CUR()])].sort().reverse();
+  $("#periodo").innerHTML=ks.map(k=>`<option value="${k}">${kLabel(k,true)}</option>`).join("");
+  if(!ST.sel||!ks.includes(ST.sel)) ST.sel=CUR();
+  $("#periodo").value=ST.sel;
 }
 async function loadData(){
-  if(STATE.demo){ STATE.ingresosLive={}; STATE.cuotasLive=null; STATE.baldesLive=null; applyRows(buildRows(DEMO_CSV),{demo:true}); return; }
-  setDot('load','cargando…');
+  setDot("load","actualizando…");
   try{
-    // Movimientos + Ingresos + Cuotas (planilla de presupuesto) + Fondos + Inversiones ("Finanzas General"), en paralelo
-    const [movR, ingR, cuoR, cfgR, fondR, invR] = await Promise.allSettled([
-      loadGviz(SHEET_NAME), loadGviz('INGRESOS'), loadGviz(SHEET_CUOTAS),
-      loadGviz(SHEET_CONFIG),
-      loadGviz('Fondos', FIN_GEN_ID), loadGviz('Inversiones', FIN_GEN_ID)
-    ]);
-    if(movR.status!=='fulfilled') throw (movR.reason || new Error('script-error'));
-    const resp=movR.value;
-    if(resp && resp.status==='error'){
-      const msg=(resp.errors&&resp.errors[0]&&(resp.errors[0].detailed_message||resp.errors[0].message))||'sin acceso a la planilla';
-      throw new Error(msg.replace(/<[^>]+>/g,''));
-    }
-    const rows=buildRowsFromMatrix(gvizMatrix(resp));
-    if(!rows.length) throw new Error('La planilla respondió pero no encontré movimientos.');
-    // ingresos en vivo (si la hoja Ingresos se pudo leer)
-    STATE.ingresosLive={};
-    if(ingR.status==='fulfilled' && ingR.value && ingR.value.status!=='error'){
-      try{ STATE.ingresosLive = buildIngresos(gvizMatrix(ingR.value)); }catch(e){ STATE.ingresosLive={}; }
-    }
-    // cuotas en vivo (si la hoja Cuotas se pudo leer); si falla, cae al plan de CONFIG
-    STATE.cuotasLive=null;
-    if(cuoR.status==='fulfilled' && cuoR.value && cuoR.value.status!=='error'){
-      try{ STATE.cuotasLive = buildCuotas(cuoR.value); }catch(e){ STATE.cuotasLive=null; }
-    }
-    // porcentajes de baldes en vivo (hoja CONFIG); si falla, cae al horneado CONFIG.baldes
-    STATE.baldesLive=null;
-    if(cfgR.status==='fulfilled' && cfgR.value && cfgR.value.status!=='error'){
-      try{ STATE.baldesLive = buildConfigBaldes(cfgR.value); }catch(e){ STATE.baldesLive=null; }
-    }
-    // patrimonio (fondos + inversiones) — opcional; si falla, la sección no se muestra
-    STATE.patrimonio=null;
-    try{
-      const fondos = (fondR.status==='fulfilled' && fondR.value && fondR.value.status!=='error') ? buildFondos(gvizMatrix(fondR.value)) : null;
-      const inversiones = (invR.status==='fulfilled' && invR.value && invR.value.status!=='error') ? buildInversiones(gvizMatrix(invR.value)) : null;
-      if(fondos || inversiones) STATE.patrimonio = { fondos, inversiones };
-    }catch(e){ STATE.patrimonio=null; }
-    applyRows(rows,{live:true});
+    const [mov,ing,cuo,fon,inv]=await Promise.allSettled([loadGviz(SHEETS.mov),loadGviz(SHEETS.ing),loadGviz(SHEETS.cuo),loadGviz("Fondos",FIN_GEN_ID),loadGviz("Inversiones",FIN_GEN_ID)]);
+    if(mov.status!=="fulfilled") throw mov.reason||new Error("sin conexión");
+    if(mov.value&&mov.value.status==="error") throw new Error("La planilla no está compartida como 'Cualquiera con el enlace → Lector'.");
+    const ok=r=>r.status==="fulfilled"&&r.value&&r.value.status!=="error";
+    ST.rows=buildRows(gvizMatrix(mov.value));
+    if(!ST.rows.length) throw new Error("La planilla respondió pero no encontré gastos.");
+    ST.ing= ok(ing)?buildIngresos(gvizMatrix(ing.value)):{};
+    ST.cuo= ok(cuo)?buildCuotas(cuo.value):{total:{},items:[]};
+    ST.pat=null;
+    try{ const f=ok(fon)?buildFondos(gvizMatrix(fon.value)):null; const i=ok(inv)?buildInversiones(gvizMatrix(inv.value)):null; if(f||i) ST.pat={fondos:f,inv:i}; }catch(e){}
+    fillPeriodo();
+    $("#loading").classList.add("hide"); $("#error").classList.add("hide"); $("#app").classList.remove("hide");
+    render();
+    setDot("ok","Actualizado a las "+new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit",hour12:false}));
   }catch(e){
-    if($('#app').classList.contains('hide')){ setDot('err','sin conexión a la planilla'); showSetup(explainErr(e)); }
-    else setDot('err','no pude actualizar (revisá conexión)');
+    if($("#app").classList.contains("hide")){ $("#loading").classList.add("hide"); $("#error").classList.remove("hide");
+      $("#errMsg").textContent = /script|timeout/i.test(e.message)?"No pude leer la planilla. Revisá tu conexión a internet.":e.message; }
+    setDot("err","No pude actualizar");
   }
 }
-function applyRows(rows,opt={}){
-  if(!rows || !rows.length){ showSetup('No encontré movimientos. ¿Es el CSV de la hoja "Movimientos"?'); return; }
-  STATE.rows=rows; STATE.model=buildModel(rows); STATE.demo=!!opt.demo; STATE.manual=!!opt.manual;
-  foldCuotasIntoPersonales(STATE.model);   // suma las cuotas del mes dentro de Personales
-  fillPeriodo();
-  $('#setup').classList.add('hide'); $('#app').classList.remove('hide');
-  $('#demoBanner').classList.toggle('hide',!opt.demo);
-  render();
-  const t=new Date();
-  const tag = opt.demo?'demo · ':(opt.manual?'archivo · ':'');
-  setDot(opt.demo?'load':'ok', tag+'actualizado '+t.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+/* ============ colores y letra (se guardan en el celular) ============ */
+function aplicarTema(){
+  const root=document.documentElement;
+  let t="burgundy", f="redondeada";
+  try{ t=localStorage.getItem("ag_tema")||t; f=localStorage.getItem("ag_fuente")||f; }catch(e){}
+  root.dataset.tema=t; root.dataset.fuente=f;
+  document.querySelectorAll("#optTema .opt").forEach(b=>b.classList.toggle("on",b.dataset.v===t));
+  document.querySelectorAll("#optFuente .opt").forEach(b=>b.classList.toggle("on",b.dataset.v===f));
+  const bg=getComputedStyle(root).getPropertyValue("--bg").trim();
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",bg));
 }
-function explainErr(e){
-  const m=(e&&e.message)||'error';
-  if(/script-error|timeout|failed to fetch|networkerror|load failed|cors/i.test(m))
-    return 'No pude leer tu planilla. Revisá que esté compartida como "Cualquiera con el enlace → Lector" y que tengas internet. Después tocá "Reintentar en vivo". Si preferís, usá la Opción B (cargar CSV).';
-  return m;
-}
-function loadFile(file){
-  const r=new FileReader();
-  r.onload=()=>{ const rows=buildRows(String(r.result));
-    if(!rows.length){ $('#setuperr').textContent='⚠️ Ese archivo no tiene movimientos con el formato esperado (columna FECHA…). ¿Descargaste la hoja Movimientos como CSV?'; return; }
-    STATE.ingresosLive={}; STATE.cuotasLive=null; applyRows(rows,{manual:true}); };
-  r.onerror=()=>{ $('#setuperr').textContent='⚠️ No pude leer el archivo.'; };
-  r.readAsText(file,'utf-8');
-}
-function setDot(k,txt){ const d=$('#dot'); d.className='status-dot '+({ok:'ok',err:'err',load:'load'}[k]||''); if(txt)$('#updtxt').textContent=txt; }
-function showSetup(err){ $('#app').classList.add('hide'); $('#setup').classList.remove('hide'); $('#setuperr').textContent = err? ('⚠️ '+err):''; }
+function elegir(clave,valor){ try{ localStorage.setItem(clave,valor); }catch(e){} aplicarTema(); if(ST.rows.length) render(); }
 
-/* ---------- init ---------- */
 function init(){
-  $('#theme').addEventListener('change',e=>applyTheme(e.target.value));
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(THEME_MEM==='auto'&&STATE.model) render(); });
-  $('#periodo').addEventListener('change',e=>{ STATE.sel=e.target.value; render(); });
-  $('#refresh').addEventListener('click',()=>{ STATE.demo=false; STATE.manual=false; loadData(); });
-  $('#retry').addEventListener('click',()=>{ $('#setuperr').textContent=''; STATE.demo=false; STATE.manual=false; loadData(); });
-  $('#filein').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) loadFile(f); });
-  $('#demoBtn').addEventListener('click',()=>{ STATE.demo=true; loadData(); });
-  $('#tblToggle').addEventListener('click',()=>{ const w=$('#tblwrap'),h=$('#tblHint'),b=$('#tblToggle');
-    const show=w.classList.contains('hide'); w.classList.toggle('hide',!show); h.classList.toggle('hide',show); b.textContent=show?'Ocultar tabla ▴':'Ver tabla ▾'; });
-
-  const hash=location.hash.toLowerCase();
-  if(hash.includes('demo')){ STATE.demo=true; loadData(); }
-  else if(FILE_ID){ loadData(); }
-  else { showSetup(); }
-
-  // auto refresh (solo en modo en vivo)
-  setInterval(()=>{ if(!STATE.demo && !STATE.manual && STATE.model && !document.hidden) loadData(); }, 15*60*1000);
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden && !STATE.demo && !STATE.manual && STATE.model){ loadData(); } });
+  aplicarTema();
+  $("#temaBtn").onclick=()=>$("#tema").classList.toggle("open");
+  document.querySelectorAll("#optTema .opt").forEach(b=>b.onclick=()=>elegir("ag_tema",b.dataset.v));
+  document.querySelectorAll("#optFuente .opt").forEach(b=>b.onclick=()=>elegir("ag_fuente",b.dataset.v));
+  $("#periodo").onchange=e=>{ ST.sel=e.target.value; ST.showAll=false; render(); };
+  $("#refresh").onclick=loadData; $("#retry").onclick=loadData;
+  $("#moreBtn").onclick=()=>{ ST.showAll=!ST.showAll; renderList(mes(ST.sel),ST.sel===CUR()); };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ if(ST.rows.length) render(); });
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&ST.rows.length) loadData(); });
+  setInterval(()=>{ if(!document.hidden) loadData(); },15*60*1000);
+  loadData();
 }
-
-/* ---------- datos DEMO (solo para previsualizar) ---------- */
-const DEMO_CSV = `MOVIMIENTOS,,,,,,,,,,,
-Las columnas se completan solas,,,,,,,,,,,
-FECHA,AÑO,MES,BALDE,CATEGORIA,DESCRIPCION,MONTO,MEDIO DE PAGO,FIJO/VAR,QUIEN PAGO,NOTAS,CONTROL
-15/06/2026,2026,Junio,Esenciales,Alquiler,Alquiler,$299.103,,Fijo,,,
-15/06/2026,2026,Junio,Esenciales,Expensas,Expensas,$183.987,,Fijo,,,
-15/06/2026,2026,Junio,Esenciales,Supermercado,Carrefour,$91.909,,Variable,,,
-15/06/2026,2026,Junio,Esenciales,Nafta,Nafta,$55.848,,Variable,,,
-15/06/2026,2026,Junio,Personales,Ropa y Calzado,Campera,$90.000,,Variable,,,
-15/06/2026,2026,Junio,Ahorro,Dolares (fondo tranquilidad),Mi 3 usd,$461.180,,Fijo,,,
-15/06/2026,2026,Junio,Vacaciones,Compra USD,USD,$230.590,,Fijo,,,
-15/07/2026,2026,Julio,Esenciales,Alquiler,Alquiler,$299.104,,Fijo,,,
-15/07/2026,2026,Julio,Esenciales,Expensas,Expensas,$191.843,,Fijo,,,
-15/07/2026,2026,Julio,Esenciales,Supermercado,La14,$158.881,,Variable,,,
-15/07/2026,2026,Julio,Personales,Ropa y Calzado,Zapatillas,$354.784,,Variable,,,
-15/07/2026,2026,Julio,Personales,Regalos y Eventos,Regalo,$202.415,,Variable,,,
-15/07/2026,2026,Julio,Ahorro,Dolares (fondo tranquilidad),USD,$715.359,,Fijo,,,
-15/07/2026,2026,Julio,Vacaciones,Compra USD,USD,$357.680,,Fijo,,,
-15/08/2026,2026,Agosto,Esenciales,Alquiler,Alquiler,$299.104,,Fijo,,,
-15/08/2026,2026,Agosto,Esenciales,Expensas,Expensas,$191.843,,Fijo,,,
-15/08/2026,2026,Agosto,Esenciales,Supermercado,La14,$143.938,,Variable,,,
-15/08/2026,2026,Agosto,Esenciales,Nafta,Nafta,$30.488,,Variable,,,
-15/08/2026,2026,Agosto,Esenciales,Salud y Farmacia,Farmacia,$30.583,,Variable,,,
-15/08/2026,2026,Agosto,Esenciales,Peluqueria,Corte,$18.000,,Variable,,,
-15/08/2026,2026,Agosto,Esenciales,Servicios (luz/agua/gas),EPEC,$15.367,,Fijo,,,
-15/08/2026,2026,Agosto,Esenciales,Auto,Lavadero,$8.089,,Variable,,,
-15/08/2026,2026,Agosto,Personales,Tecnologia y Hogar,Monitor,$103.329,,Variable,,,
-15/08/2026,2026,Agosto,Personales,Ropa y Calzado,Remera,$90.000,,Variable,,,
-15/08/2026,2026,Agosto,Personales,Regalos y Eventos,Regalo,$44.334,,Variable,,,
-15/08/2026,2026,Agosto,Personales,Salidas y Restaurantes,Cena,$4.500,,Variable,,,
-15/08/2026,2026,Agosto,Ahorro,Dolares (fondo tranquilidad),USD,$479.573,,Fijo,,,`;
-
-document.addEventListener('DOMContentLoaded',init);
+document.addEventListener("DOMContentLoaded",init);
 </script>
 </body>
 </html>
