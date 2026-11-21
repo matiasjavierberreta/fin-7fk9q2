@@ -327,14 +327,14 @@ const FERIADOS = ["01-01","02-16","02-17","03-24","04-02","04-03","05-01","05-25
 /* Rubros: agrupan las categorías de la planilla en algo fácil de leer.
    El orden fija el color (no cambiar el orden sin revisar la paleta). */
 const RUBROS = [
-  { id:"casa",    nombre:"Casa",               emoji:"🏠", c:"--s1", cats:["alquiler","expensas","servicios","internet","seguro depto","hogar"] },
+  { id:"casa",    nombre:"Casa",               emoji:"🏠", c:"--s1", cats:["vivienda","alquiler","expensas","servicios","internet","seguro depto","hogar"] },
   { id:"super",   nombre:"Súper",              emoji:"🛒", c:"--s2", cats:["supermercado"] },
   { id:"tenis",   nombre:"Tenis",              emoji:"🎾", c:"--s3", cats:["tenis"] },
   { id:"auto",    nombre:"Auto",               emoji:"🚗", c:"--s4", cats:["nafta","auto","patente","seguro auto"] },
   { id:"salud",   nombre:"Salud y farmacia",   emoji:"🩺", c:"--s5", cats:["salud","farmacia"] },
-  { id:"social",  nombre:"Salidas y regalos",  emoji:"🥂", c:"--s6", cats:["salidas","regalos","delivery","cafe","kiosco","viajes"] },
+  { id:"social",  nombre:"Salidas y regalos",  emoji:"🥂", c:"--s6", cats:["comida","salidas","regalos","delivery","cafe","kiosco","viajes"] },
   { id:"ahorro",  nombre:"Ahorro",             emoji:"💵", c:"--s7", cats:[] , ahorro:true },
-  { id:"estudio", nombre:"Estudios",           emoji:"🎓", c:"--s8", cats:["estudios","educacion","catolica"] },
+  { id:"estudio", nombre:"Estudios",           emoji:"🎓", c:"--s8", cats:["estudios","educacion","catolica","colegio"] },
   { id:"otros",   nombre:"Ropa y otros",       emoji:"🛍️", c:"--s0", cats:[] }
 ];
 
@@ -363,7 +363,8 @@ function num(s){
 const norm = s => (s==null?"":String(s)).trim();
 
 function rubroDe(r){
-  if(r.balde==="Ahorro"||r.balde==="Vacaciones") return "ahorro";
+  if(r.balde==="Ahorro") return "ahorro";
+  if(r.balde==="Vacaciones") return "social";   // Gastos vacaciones: es gasto del viaje, no ahorro
   const c=sinTildes(r.cat);
   for(const R of RUBROS){ if(R.cats.some(k=>c.includes(k))) return R.id; }
   return "otros";
@@ -666,7 +667,7 @@ function renderProx(){
   const sec=$("#secProx"); const cur=CUR();
   const ks=[]; for(let i=1;i<=6;i++) ks.push(kAdd(cur,i));
   // solo cuotas de compras (los aportes de ahorro en cuotas no son deuda)
-  const cuoMes=k=> (ST.cuo.items&&ST.cuo.items.length) ? ST.cuo.items.filter(it=>it.balde!=="Ahorro"&&it.balde!=="Vacaciones").reduce((a,it)=>a+(it.by[k]||0),0) : ((ST.cuo.total||{})[k]||0);
+  const cuoMes=k=> (ST.cuo.items&&ST.cuo.items.length) ? ST.cuo.items.filter(it=>it.balde!=="Ahorro").reduce((a,it)=>a+(it.by[k]||0),0) : ((ST.cuo.total||{})[k]||0);
   const vals=ks.map(cuoMes);
   if(!vals.some(v=>v>0)){ sec.classList.add("hide"); return; } sec.classList.remove("hide");
   const sorted=vals.filter(v=>v>0).sort((a,b)=>a-b); const med=sorted[Math.floor(sorted.length/2)]||0;
