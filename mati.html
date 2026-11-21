@@ -1007,20 +1007,18 @@ function render(){
 /* ---------- gastos de la casa ---------- */
 // Rubros agrupando categorías de la hoja Movimientos (los nombres llegan sin espacios al final)
 const CASA_GRUPOS=[
-  {k:'Alquiler',     cats:['Alquiler']},
-  {k:'Expensas',     cats:['Expensas']},
-  {k:'Servicios',    cats:['Servicios (luz/agua/gas)','Internet y Celular','Seguro depto']},
-  {k:'Auto',         cats:['Nafta','Auto','Seguro auto','Patente','Estacionamiento y Transporte']},
+  {k:'Vivienda',     cats:['Vivienda','Alquiler','Expensas','Seguro depto']},
+  {k:'Servicios',    cats:['Servicios (luz/agua/gas/internet/celular)','Servicios (luz/agua/gas)','Internet y Celular']},
+  {k:'Auto',         cats:['Auto','Nafta','Patente','Seguro auto']},
   {k:'Supermercado', cats:['Supermercado']}
 ];
-const CASA_ALIAS={'Auto':'Mantenimiento, peajes, lavados','Estacionamiento y Transporte':'Estacionamiento','Seguro auto':'Seguro','Servicios (luz/agua/gas)':'Luz, agua, gas','Internet y Celular':'Internet y celular','Seguro depto':'Seguro depto'};
+const CASA_ALIAS={'Auto':'Nafta, patente, seguro, service','Servicios (luz/agua/gas/internet/celular)':'Luz, agua, gas, internet y celular','Servicios (luz/agua/gas)':'Luz, agua, gas','Internet y Celular':'Internet y celular','Seguro depto':'Seguro depto'};
 function casaVals(key){
   const m=STATE.model.byKey[key];
   return CASA_GRUPOS.map(g=>g.cats.reduce((a,c)=>a+((m&&m.cats[c])||0),0));
 }
 const CASA_ICO={
-  Alquiler:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
-  Expensas:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/>',
+  Vivienda:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
   Servicios:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   Auto:'<path d="M5 16l1.5-5h11L19 16"/><rect x="3" y="16" width="18" height="4" rx="1"/>',
   Supermercado:'<circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l3 12h11l2-8H6"/>'
@@ -1209,7 +1207,7 @@ function renderEvo(P,anio){
 function renderTop(P,m){
   const casa=new Set(CASA_GRUPOS.filter(g=>g.k!=='Auto').flatMap(g=>g.cats));
   const cats = m? Object.entries(m.cats).filter(([c])=>!casa.has(c) && !['Ahorro','Vacaciones'].includes(m.catBalde[c])).sort((a,b)=>b[1]-a[1]).slice(0,7) : [];
-  $('#topSub').textContent = m? `${m.mes} ${m.anio} · sin alquiler, expensas, servicios ni súper (están en Casa)` : '';
+  $('#topSub').textContent = m? `${m.mes} ${m.anio} · sin vivienda, servicios ni súper (están en Casa)` : '';
   const labels=cats.map(c=>c[0]); const data=cats.map(c=>c[1]);
   const cols=cats.map(c=>m.catBalde[c[0]]==='Personales'?P.s[1]:P.s[0]);
   const o=baseOpts(P); o.indexAxis='y';
