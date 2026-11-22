@@ -210,12 +210,19 @@ table.ten td{padding:7px 4px;border-bottom:1px solid var(--line)}
 .dot.ok{background:var(--good)} .dot.err{background:var(--bad)} .dot.load{background:var(--warn)}
 .center{text-align:center;padding:60px 10px;color:var(--ink2)}
 .center button{margin-top:14px;border:0;background:var(--acc);color:var(--acc-ink);border-radius:12px;padding:11px 18px;font-weight:700;font-size:14px}
+@media(max-width:520px){
+  /* mobile: nombre y diferencia arriba en una línea, barra abajo a todo el ancho */
+  .cmpr{grid-template-columns:1fr auto;grid-template-areas:"nm dl" "bars bars";row-gap:4px}
+  .cmpr .nm{grid-area:nm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmpr .dl{grid-area:dl;white-space:nowrap}
+  .cmpr .dl small{display:inline;margin-left:6px}
+  .cmpr .bars{grid-area:bars}
+}
 @media(max-width:400px){
   .big{font-size:42px}
   .wfr{grid-template-columns:104px 1fr;gap:8px}
   .wft .b{max-width:40%}
   .wft .v{font-size:13px}
-  .cmpr{grid-template-columns:96px 1fr 64px}
   .wfd{padding-left:4px}
   .split3 .mini .n{font-size:19px}
 }
