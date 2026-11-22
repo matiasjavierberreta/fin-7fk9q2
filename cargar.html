@@ -182,7 +182,7 @@ const hoy = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezon
 const mesSig = () => { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 
 // Link de configuración: cargar.html#k=CLAVE (se guarda y se borra de la barra)
-(() => { const m = location.hash.match(/[#&]k=([^&]+)/); if (m) { LS.set('tok', decodeURIComponent(m[1])); LS.set('url', DEFAULT_URL); LS.set('cfg', null); localStorage.removeItem(NS+'quien'); history.replaceState(null, '', location.pathname); } })();
+(() => { const m = location.hash.match(/[#&]k=([^&]+)/); if (m) { LS.set('tok', decodeURIComponent(m[1])); LS.set('url', DEFAULT_URL); LS.set('cfg', null); localStorage.removeItem(NS+'quien'); history.replaceState(null, '', location.pathname + location.search); } })();
 let cfg = LS.get('cfg', null);           // última config (para abrir offline)
 let st = { balde:LS.get('balde','Esenciales'), cat:null, medio:LS.get('medio',''), quien:LS.get('quien',''), fv:'Variable' };
 let last = null;                         // último guardado, para deshacer
