@@ -467,7 +467,7 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRI7icG-5ZzMLQI
 // 2) Ingreso neto por mes (ARS). Actualizá si cambia tu sueldo.
 const CONFIG = {
   syncDate: "2026-08-13",
-  baldes:   { Esenciales:0.50, Personales:0.20, Ahorro:0.20, Vacaciones:0.10 },
+  baldes:   { Esenciales:0.50, Personales:0.20, Ahorro:0.30, Vacaciones:0.00 },
   objetivoAhorro: 0.20,        // objetivo de tasa de ahorro (balde Ahorro)
   ingresos: {
     "2026": { Enero:1979046, Febrero:1979046, Marzo:2058039, Abril:2058039,
@@ -823,9 +823,9 @@ function buildConfigBaldes(resp){
       if(!hit || out[hit]!=null) continue;
       for(let cj=ci+1; cj<r.length; cj++){
         let v=cellVal(r[cj]);
-        if(v==null || v<=0) continue;
+        if(v==null || v<0) continue;          // 0% es válido (ej. Vacaciones sin presupuesto mensual)
         if(v>1) v=v/100;
-        if(v>0 && v<=1){ out[hit]=v; break; }
+        if(v>=0 && v<=1){ out[hit]=v; break; }
       }
     }
   }
