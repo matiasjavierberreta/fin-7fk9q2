@@ -156,10 +156,24 @@ h1 a{color:var(--ink2);text-decoration:none;font-size:18px;padding:4px}
 (() => {
 const $ = id => document.getElementById(id);
 const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbyn5rJjUSzyOmjEuuUdepF0fIh9qNSG0TPPbVWyninN6SsrHNlJGdPlvEwWlJdqYGlKGw/exec';
+// ?u=agos / ?u=mati: cada persona guarda su clave por separado (dispositivo compartido).
+// Sin ?u (ícono de inicio) se usa la clave de siempre.
+const U = ((new URLSearchParams(location.search).get('u'))||'').toLowerCase().replace(/[^a-z]/g,'');
+const NOMBRE = U ? U.charAt(0).toUpperCase()+U.slice(1) : '';
+const NS = U ? 'cg_'+U+'_' : 'cg_';
 const LS = {
-  get(k, d){ try{ const v = localStorage.getItem('cg_'+k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem('cg_'+k, JSON.stringify(v)); }catch(e){} }
+  get(k, d){ try{ const v = localStorage.getItem(NS+k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(NS+k, JSON.stringify(v)); }catch(e){} }
 };
+// Primera vez con ?u: si la clave guardada de siempre es de esta persona, la adopta sola.
+(() => {
+  if (!U || LS.get('tok','')) return;
+  const raw = k => { try{ const v = localStorage.getItem('cg_'+k); return v==null ? null : JSON.parse(v); }catch(e){ return null; } };
+  const tok = raw('tok'), c = raw('cfg');
+  if (!tok || !c || !c.yo || c.yo.toLowerCase() !== U) return;
+  ['url','tok','cfg','balde','medio','quien','dividir','cola'].forEach(k => { const v = localStorage.getItem('cg_'+k); if (v != null) localStorage.setItem(NS+k, v); });
+  localStorage.removeItem('cg_cola');   // la cola pendiente pasa a esta persona (no se manda dos veces)
+})();
 const fmt = n => '$' + Math.round(n||0).toLocaleString('es-AR');
 const parseMonto = s => { s = String(s).trim().replace(/\s|\$/g,''); if(!s) return NaN;
   if (s.includes(',')) s = s.replace(/\./g,'').replace(',', '.'); else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,'');
@@ -168,7 +182,7 @@ const hoy = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezon
 const mesSig = () => { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 
 // Link de configuración: cargar.html#k=CLAVE (se guarda y se borra de la barra)
-(() => { const m = location.hash.match(/[#&]k=([^&]+)/); if (m) { LS.set('tok', decodeURIComponent(m[1])); LS.set('url', DEFAULT_URL); LS.set('cfg', null); localStorage.removeItem('cg_quien'); history.replaceState(null, '', location.pathname); } })();
+(() => { const m = location.hash.match(/[#&]k=([^&]+)/); if (m) { LS.set('tok', decodeURIComponent(m[1])); LS.set('url', DEFAULT_URL); LS.set('cfg', null); localStorage.removeItem(NS+'quien'); history.replaceState(null, '', location.pathname); } })();
 let cfg = LS.get('cfg', null);           // última config (para abrir offline)
 let st = { balde:LS.get('balde','Esenciales'), cat:null, medio:LS.get('medio',''), quien:LS.get('quien',''), fv:'Variable' };
 let last = null;                         // último guardado, para deshacer
@@ -227,7 +241,7 @@ function pills(id, arr, key){
 }
 function renderResumen(r){
   if(!r) return;
-  $('mes').textContent = 'Disponible · ' + r.mes;
+  $('mes').textContent = (cfg && cfg.yo ? cfg.yo + ' · ' : '') + 'Disponible · ' + r.mes;
   $('res').innerHTML = r.baldes.map(b=>{
     const u = Math.max(0, Math.min(1, b.uso||0));
     const sinPres = !(b.uso>0) && b.disponible<=0;          // balde con 0% (ej. Vacaciones: se paga con ahorro)
@@ -325,13 +339,14 @@ async function cargarConfig(){
   const url = LS.get('url',DEFAULT_URL), tok = LS.get('tok','');
   const r = await fetch(url + (url.includes('?')?'&':'?') + 'action=config&token=' + encodeURIComponent(tok));
   const j = await r.json(); if(!j.ok) throw new Error(j.error);
+  if (U && j.yo && j.yo.toLowerCase() !== U) { const e = new Error(`esa clave es de ${j.yo}. Poné la clave de ${NOMBRE}.`); e.ajena = true; throw e; }
   cfg = j; LS.set('cfg', cfg); render();
 }
 $('fecha').value = hoy(); $('mesIni').value = mesSig(); setFv('Variable'); mostrarCola();
-if (!LS.get('url',DEFAULT_URL) || !LS.get('tok','')) showSetup();
+if (!LS.get('url',DEFAULT_URL) || !LS.get('tok','')) showSetup(U ? 'Poné la clave de '+NOMBRE+' (se pide una sola vez en este dispositivo).' : '');
 else {
   if (cfg) render();
-  vaciarCola().then(cargarConfig).catch(e => { if(!cfg) showSetup('No pude conectar: '+e.message); });
+  vaciarCola().then(cargarConfig).catch(e => { if(!cfg || e.ajena) showSetup(e.ajena ? 'No funcionó: '+e.message : 'No pude conectar: '+e.message); });
 }
 })();
 </script>
