@@ -230,6 +230,13 @@ function renderResumen(r){
   $('mes').textContent = 'Disponible · ' + r.mes;
   $('res').innerHTML = r.baldes.map(b=>{
     const u = Math.max(0, Math.min(1, b.uso||0));
+    const sinPres = !(b.uso>0) && b.disponible<=0;          // balde con 0% (ej. Vacaciones: se paga con ahorro)
+    const objetivo = b.balde==='Ahorro' || b.balde==='Vacaciones';
+    if(sinPres) return `<div>${b.balde}<b style="color:var(--muted,inherit)">${b.disponible<0?fmt(-b.disponible):'—'}</b><div class="bar"><i style="width:0"></i></div></div>`;
+    if(objetivo){                                            // ahorro: pasarse del objetivo es bueno
+      const txt = b.disponible<0 ? '+'+fmt(-b.disponible) : fmt(b.disponible);
+      return `<div>${b.balde}<b style="color:${b.disponible<=0?'var(--good)':'inherit'}">${txt}</b><div class="bar"><i style="width:${u*100}%;background:var(--good)"></i></div></div>`;
+    }
     const col = u>=.95?'var(--bad)':u>=.75?'var(--warn)':'var(--good)';
     return `<div>${b.balde}<b style="color:${b.disponible<0?'var(--bad)':'inherit'}">${fmt(b.disponible)}</b><div class="bar"><i style="width:${u*100}%;background:${col}"></i></div></div>`;
   }).join('');

@@ -983,7 +983,7 @@ function render(){
   const baldes=BALDE_ORDER.map(b=>(m&&m.baldes[b])||0);
   const totalOut=baldes.reduce((a,b)=>a+b,0);
   const gastos=(m?.baldes.Esenciales||0)+(m?.baldes.Personales||0);
-  const guardado=(m?.baldes.Ahorro||0)+(m?.baldes.Vacaciones||0);
+  const guardado=(m?.baldes.Ahorro||0);
   const tasa=ingreso?(m?.baldes.Ahorro||0)/ingreso:0;
   const sinAsignar=ingreso-totalOut;
 
@@ -1070,7 +1070,7 @@ function renderHero(P,d){
       </div>
       <div class="stats">
         <div><span>Gastaste</span><b>${fmt.format(d.gastos)}</b></div>
-        <div><span>Ahorro + vacaciones</span><b style="color:var(--goodink)">${fmt.format(d.guardado)}</b></div>
+        <div><span>Ahorro</span><b style="color:var(--goodink)">${fmt.format(d.guardado)}</b></div>
         <div><span>Tasa de ahorro</span><b>${pct(d.tasa)}</b></div>
       </div>
     </div>
@@ -1088,7 +1088,7 @@ function renderAlertas(P,{key,anio,mi,ingreso,m}){
   }
   const {vals,avg}=casaStats(key);
   CASA_GRUPOS.forEach((g,i)=>{ if(avg[i]>0 && vals[i]>avg[i]*1.15) out.push(['warn',`${g.k} ${pct(vals[i]/avg[i]-1)} arriba de tu promedio.`]); });
-  const ok=['Ahorro','Vacaciones'].filter(b=>ingreso && ((m&&m.baldes[b])||0)>=ingreso*BALDES()[b]);
+  const ok=['Ahorro','Vacaciones'].filter(b=>ingreso && BALDES()[b]>0 && ((m&&m.baldes[b])||0)>=ingreso*BALDES()[b]);
   if(ok.length===2) out.push(['good','Ahorro y vacaciones ya cumplidos este mes.']);
   else if(ok.length===1) out.push(['good',`${ok[0]} ya cumplido este mes.`]);
   if(m && m.cuotasMes>0 && out.length<4) out.push(['info',`Cuotas del mes: ${fmt.format(m.cuotasMes)} (dentro de Personales).`]);
@@ -1162,9 +1162,20 @@ function renderBullets(P,{anio,mi,ingreso,m}){
   const colors={Esenciales:P.s[0],Personales:P.s[1],Ahorro:P.s[2],Vacaciones:P.s[3]};
   let html='';
   for(const b of BALDE_ORDER){
-    const isSaving = (b==='Ahorro'||b==='Vacaciones');
     const gasto=(m&&m.baldes[b])||0;
     const presup=ingreso*BALDES()[b];
+    if(BALDES()[b]===0){   // balde sin presupuesto mensual (Vacaciones: se paga con Ahorro > Vacaciones)
+      html+=`<div class="bullet">
+      <div class="top">
+        <span class="name"><span class="dotb" style="background:${colors[b]}"></span>${b} <span class="mini">· sin presupuesto mensual</span></span>
+        <span class="amt">${fmt.format(gasto)}</span>
+      </div>
+      <div class="track"><div class="fill" style="width:${gasto>0?100:0}%;background:${colors[b]}"></div></div>
+      <div class="msg"><span class="dotb" style="background:${colors[b]}"></span>${gasto>0?'Pagado con lo ahorrado en Ahorro &gt; Vacaciones':'Nada este mes · los gastos del viaje se pagan con Ahorro &gt; Vacaciones'}</div>
+    </div>`;
+      continue;
+    }
+    const isSaving = (b==='Ahorro'||b==='Vacaciones');
     const uso= presup>0? gasto/presup : 0;
     const st=statusFor(uso,pace,isSaving);
     const w=Math.min(100,uso*100);
@@ -1206,10 +1217,10 @@ function renderEvo(P,anio){
 
 function renderTop(P,m){
   const casa=new Set(CASA_GRUPOS.filter(g=>g.k!=='Auto').flatMap(g=>g.cats));
-  const cats = m? Object.entries(m.cats).filter(([c])=>!casa.has(c) && !['Ahorro','Vacaciones'].includes(m.catBalde[c])).sort((a,b)=>b[1]-a[1]).slice(0,7) : [];
+  const cats = m? Object.entries(m.cats).filter(([c])=>!casa.has(c) && m.catBalde[c]!=='Ahorro').sort((a,b)=>b[1]-a[1]).slice(0,7) : [];
   $('#topSub').textContent = m? `${m.mes} ${m.anio} · sin vivienda, servicios ni súper (están en Casa)` : '';
   const labels=cats.map(c=>c[0]); const data=cats.map(c=>c[1]);
-  const cols=cats.map(c=>m.catBalde[c[0]]==='Personales'?P.s[1]:P.s[0]);
+  const cols=cats.map(c=>m.catBalde[c[0]]==='Personales'?P.s[1]:m.catBalde[c[0]]==='Vacaciones'?P.s[3]:P.s[0]);
   const o=baseOpts(P); o.indexAxis='y';
   o.interaction={intersect:false,mode:'index',axis:'y'};
   o.plugins.tooltip.callbacks.label=(c)=>fmt.format(c.parsed.x);
@@ -1240,9 +1251,10 @@ function renderTasa(P,anio){
 
 function renderObjetivos(P,{anio,mi,ingreso,m}){
   const ahorro=(m&&m.baldes.Ahorro)||0, ahorroObj=ingreso*BALDES().Ahorro;
-  const vac=(m&&m.baldes.Vacaciones)||0, vacObj=ingreso*BALDES().Vacaciones;
-  // vacaciones acumuladas del año
-  let vacAcc=0; for(let i=0;i<=mi;i++){const k=`${anio}-${String(i+1).padStart(2,'0')}`; vacAcc+=STATE.model.byKey[k]?.baldes.Vacaciones||0;}
+  // lo que se junta para vacaciones = categoría Ahorro > Vacaciones (el balde Vacaciones es para gastar en el viaje)
+  const vacDe=mm=>(mm&&mm.catBalde&&mm.catBalde.Vacaciones==='Ahorro')?(mm.cats.Vacaciones||0):0;
+  const vac=vacDe(m);
+  let vacAcc=0; for(let i=0;i<=mi;i++){const k=`${anio}-${String(i+1).padStart(2,'0')}`; vacAcc+=vacDe(STATE.model.byKey[k]);}
   const bar=(lbl,val,obj,color)=>{const p=obj>0?Math.min(100,val/obj*100):0; const done=val>=obj&&obj>0;
     return `<div class="obj">
       <div class="top"><span>${lbl} ${done?'✅':''}</span><span class="mini">${fmt.format(val)} / ${fmt.format(obj)}</span></div>
@@ -1251,7 +1263,7 @@ function renderObjetivos(P,{anio,mi,ingreso,m}){
     </div>`;};
   $('#objetivos').innerHTML =
     bar(`Ahorro del mes (${Math.round(BALDES().Ahorro*100)}%)`,ahorro,ahorroObj,P.s[2]) +
-    bar(`Vacaciones del mes (${Math.round(BALDES().Vacaciones*100)}%)`,vac,vacObj,P.s[3]) +
+    `<div class="obj"><div class="top"><span>Para vacaciones este mes</span><span class="mini">${fmt.format(vac)}</span></div></div>` +
     `<div class="obj"><div class="top"><span>Vacaciones acumuladas ${anio}</span><span class="mini">${fmt.format(vacAcc)}</span></div></div>`;
 }
 
